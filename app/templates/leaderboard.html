@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboard - Agricultural Assistant{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6 text-center">🏆 Farmer Leaderboard</h1>
+
+    <div class="max-w-4xl mx-auto">
+        <div id="leaderboard-content">
+            <div class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-gray-600">Loading leaderboard...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load leaderboard
+    async function loadLeaderboard() {
+        try {
+            const response = await fetch('/api/gamification/leaderboard');
+            if (!response.ok) throw new Error('Failed to load leaderboard');
+
+            const data = await response.json();
+            displayLeaderboard(data);
+        } catch (error) {
+            document.getElementById('leaderboard-content').innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                <p class="text-red-600 font-semibold">${error.message}</p>
+            </div>
+        `;
+        }
+    }
+
+    function displayLeaderboard(leaderboard) {
+        const currentUser = localStorage.getItem('token');
+
+        document.getElementById('leaderboard-content').innerHTML = `
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            ${leaderboard.map((entry, index) => {
+            const isTopThree = entry.rank <= 3;
+            const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+            return `
+                    <div class="flex items-center justify-between p-4 border-b hover:bg-gray-50 ${isTopThree ? 'bg-yellow-50' : ''}">
+                        <div class="flex items-center space-x-4 flex-1">
+                            <div class="text-2xl font-bold ${isTopThree ? 'text-yellow-600' : 'text-gray-600'} w-12 text-center">
+                                ${medals[entry.rank] || entry.rank}
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-bold text-lg">${entry.name}</p>
+                                <p class="text-sm text-gray-600">${entry.district || 'Unknown'}</p>
+                                ${entry.badges.length > 0 ? `
+                                    <div class="flex space-x-1 mt-1">
+                                        ${entry.badges_icons.map(icon => `<span class="text-lg">${icon}</span>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-2xl font-bold text-green-600">${formatNumber(entry.points)}</p>
+                            <p class="text-sm text-gray-500">points</p>
+                        </div>
+                    </div>
+                `;
+        }).join('')}
+        </div>
+        
+        ${currentUser ? `
+        <div class="mt-8 text-center">
+            <a href="/dashboard" class="text-green-600 hover:underline font-semibold">
+                ← Back to Dashboard
+            </a>
+        </div>
+        ` : ''}
+    `;
+    }
+
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadLeaderboard);
+</script>
+{% endblock %}

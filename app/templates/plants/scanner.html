@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Plant Scanner - Agricultural Assistant{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">🌿 Plant Identification Scanner</h1>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+        <form id="plant-scan-form" enctype="multipart/form-data" class="space-y-6">
+            <!-- Image Upload -->
+            <div>
+                <label class="block text-lg font-medium mb-3">
+                    Upload Plant Photo
+                </label>
+                <input type="file" id="plant-image" name="image" accept="image/*" capture="environment"
+                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
+                    required />
+                <p class="text-sm text-gray-500 mt-2">Take a clear photo of the plant. Maximum 10MB.</p>
+            </div>
+
+            <!-- Image Preview -->
+            <div id="image-preview" class="hidden">
+                <img id="preview-img" class="image-preview mx-auto" />
+            </div>
+
+            <!-- Location (auto-detected) -->
+            <input type="hidden" id="latitude" name="latitude" />
+            <input type="hidden" id="longitude" name="longitude" />
+            <div id="location-status" class="text-sm text-gray-600 flex items-center space-x-2">
+                <div class="spinner w-4 h-4"></div>
+                <span>Detecting location...</span>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="scan-btn"
+                class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+                disabled>
+                🔍 Identify Plant
+            </button>
+        </form>
+
+        <!-- Loading State -->
+        <div id="loading" class="hidden text-center py-8">
+            <div class="spinner mx-auto mb-4"></div>
+            <p class="text-gray-600 font-medium">Analyzing plant with AI...</p>
+            <p class="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden mt-6">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<script>
+    requireAuth();
+
+    // Image preview
+    document.getElementById('plant-image').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('Image too large. Maximum 10MB allowed.', 'error');
+                this.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('preview-img').src = e.target.result;
+                document.getElementById('image-preview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Get GPS location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                document.getElementById('latitude').value = position.coords.latitude;
+                document.getElementById('longitude').value = position.coords.longitude;
+                document.getElementById('location-status').innerHTML =
+                    '✅ Location detected: ' + position.coords.latitude.toFixed(4) +
+                    ', ' + position.coords.longitude.toFixed(4);
+                document.getElementById('scan-btn').disabled = false;
+            },
+            (error) => {
+                document.getElementById('location-status').innerHTML =
+                    '⚠️ Location access denied. Continuing without GPS...';
+                document.getElementById('scan-btn').disabled = false;
+            }
+        );
+    } else {
+        document.get ElementById('location-status').innerHTML =
+            '⚠️ GPS not supported. Continuing without location...';
+        document.getElementById('scan-btn').disabled = false;
+    }
+
+    // Form submission
+    document.getElementById('plant-scan-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        // Show loading
+        document.querySelector('form').classList.add('hidden');
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('results').classList.add('hidden');
+
+        // Prepare form data
+        const formData = new FormData(this);
+
+        try {
+            const response = await apiFetch('/api/plants/identify', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Identification failed');
+            }
+
+            const data = await response.json();
+
+            // Hide loading
+            document.getElementById('loading').classList.add('hidden');
+
+            // Show results
+            displayResults(data);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+            document.querySelector('form').classList.remove('hidden');
+            document.getElementById('loading').classList.add('hidden');
+        }
+    });
+
+    function displayResults(data) {
+        const resultsDiv = document.getElementById('results');
+        const detection = data.detection;
+
+        const threatColors = {
+            'High': 'red',
+            'Medium': 'yellow',
+            'Low': 'green'
+        };
+        const color = threatColors[detection.threat_level] || 'gray';
+
+        resultsDiv.innerHTML = `
+        <div class="border-l-4 border-${color}-500 bg-${color}-50 p-6 rounded">
+            <h2 class="text-3xl font-bold mb-2 text-${color}-900">${detection.common_name || detection.species}</h2>
+            <p class="text-gray-600 italic mb-4">${detection.species}</p>
+            
+            ${detection.local_name ? `
+                <p class="text-lg mb-3">
+                    <span class="font-semibold">Local Name:</span> ${detection.local_name}
+                </p>
+            ` : ''}
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-white p-3 rounded">
+                    <span class="font-semibold">Confidence:</span>
+                    <span class="text-${color}-600 font-bold">${(detection.confidence * 100).toFixed(1)}%</span>
+                </div>
+                <div class="bg-white p-3 rounded">
+                    <span class="font-semibold">Threat Level:</span>
+                    <span class="px-3 py-1 rounded bg-${color}-200 text-${color}-800 font-semibold">
+                        ${detection.threat_level}
+                    </span>
+                </div>
+            </div>
+            
+            ${detection.is_invasive ? `
+                <div class="bg-white rounded-lg p-4 mb-4 border-2 border-red-300">
+                    <h3 class="font-bold text-red-600 text-xl mb-3">⚠️ Invasive Species Alert!</h3>
+                    <div class="prose text-gray-700">
+                        ${detection.removal_method.split('\n').map(line => `<p class="mb-2">${line}</p>`).join('')}
+                    </div>
+                    <a href="#" 
+                       onclick="markDestroyed('${data.detection_id}'); return false;"
+                       class="mt-4 inline-block bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-semibold">
+                        ✓ Mark as Destroyed (+25 bonus points)
+                    </a>
+                </div>
+            ` : `
+                <div class="bg-white rounded-lg p-4 mb-4">
+                    <h3 class="font-bold text-green-600 text-xl mb-2">Plant Care Tips:</h3>
+                    <p class="text-gray-700">${detection.removal_method || 'This appears to be a non-invasive plant.'}</p>
+                </div>
+            `}
+            
+            <div class="bg-green-100 rounded-lg p-4">
+                <p class="text-green-800 font-semibold text-lg">
+                    🎉 +${data.gamification.points_added} points earned!
+                </p>
+                <p class="text-green-700">
+                    Total Points: ${formatNumber(data.gamification.total_points)}
+                </p>
+                ${data.gamification.new_badges.length > 0 ? `
+                    <p class="text-green-700 mt-2 font-semibold">
+                        🏆 New Badge(s): ${data.gamification.new_badges.join(', ')}
+                    </p>
+                ` : ''}
+            </div>
+        </div>
+        
+        <div class="mt-6 flex space-x-4 justify-center">
+            <a href="/plants/scanner" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold">
+                Scan Another Plant
+            </a>
+            <a href="/plants/history" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 font-semibold">
+                View History
+            </a>
+        </div>
+    `;
+
+        resultsDiv.classList.remove('hidden');
+    }
+
+    async function markDestroyed(detectionId) {
+        if (!confirm('Have you removed this invasive plant? This will award you 25 bonus points.')) {
+            return;
+        }
+
+        try {
+            const response = await apiFetch(`/api/plants/${detectionId}/mark-destroyed`, {
+                method: 'POST'
+            });
+
+            if (!response.ok) throw new Error('Failed to mark as destroyed');
+
+            const data = await response.json();
+            showToast(`Plant marked as destroyed! +${data.bonus_points} points!`, 'success');
+
+            // Redirect to history
+            setTimeout(() => {
+                window.location.href = '/plants/history';
+            }, 2000);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+</script>
+{% endblock %}
