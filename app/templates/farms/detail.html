@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Farm Details - AgriAssist{% endblock %}
+
+{% block extra_css %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 0.5rem;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6 flex items-center text-sm text-gray-500">
+        <a href="/farms" class="hover:text-green-600">My Farms</a>
+        <span class="mx-2">/</span>
+        <span id="breadcrumb-name" class="font-semibold text-gray-700">Loading...</span>
+    </div>
+
+    <div id="loading" class="flex justify-center py-12">
+        <div class="spinner border-4 border-green-200 border-t-green-600 rounded-full h-12 w-12 animate-spin"></div>
+    </div>
+
+    <div id="farm-content" class="hidden">
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Left Column: Map & Key Details -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Header -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h1 id="farm-name" class="text-3xl font-bold text-gray-800 mb-2"></h1>
+                    <div class="flex items-center space-x-4 text-gray-600">
+                        <span class="flex items-center"><span class="mr-1">🌱</span> <span id="farm-soil"></span></span>
+                        <span class="flex items-center"><span class="mr-1">💧</span> <span
+                                id="farm-water"></span></span>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="bg-white rounded-lg shadow-sm p-2">
+                    <div id="map"></div>
+                    <p class="text-xs text-gray-400 mt-2 text-center">Satellite view of your farm boundary</p>
+                </div>
+            </div>
+
+            <!-- Right Column: Stats & Carbon -->
+            <div class="space-y-6">
+                <!-- Area Card -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Land Area</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Hectares</p>
+                            <p id="area-ha" class="text-2xl font-bold text-green-700">--</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Acres</p>
+                            <p id="area-ac" class="text-2xl font-bold text-green-700">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carbon Credits Card -->
+                <div class="bg-gradient-to-br from-green-700 to-green-900 text-white rounded-lg shadow-md p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold opacity-90">Carbon Credits</h3>
+                            <p class="text-xs opacity-75">Estimated Annual Potential</p>
+                        </div>
+                        <span class="text-2xl">🌍</span>
+                    </div>
+
+                    <div class="mt-6 mb-2">
+                        <p class="text-sm opacity-75">Annual Value</p>
+                        <p id="carbon-value" class="text-4xl font-bold">₹0</p>
+                    </div>
+
+                    <div class="bg-white/10 rounded p-3 mt-4">
+                        <div class="flex justify-between items-center text-sm">
+                            <span>Credits Generated:</span>
+                            <span id="carbon-credits" class="font-bold">0.00</span>
+                        </div>
+                        <div class="text-xs opacity-75 mt-1 border-t border-white/20 pt-1">
+                            Market rate: ₹2,200/credit
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Info -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Farm Details</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex justify-between border-b pb-2">
+                            <span class="text-gray-500">Irrigation Method</span>
+                            <span id="farm-irrigation" class="font-medium">--</span>
+                        </li>
+                        <li class="flex justify-between border-b pb-2">
+                            <span class="text-gray-500">Location (Center)</span>
+                            <span id="farm-coords" class="font-medium text-xs">--</span>
+                        </li>
+                        <li class="flex justify-between pt-1">
+                            <span class="text-gray-500">Created On</span>
+                            <span id="farm-date" class="font-medium">--</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+    const farmId = "{{ farm_id }}";
+
+    document.addEventListener('DOMContentLoaded', loadFarmDetails);
+
+    async function loadFarmDetails() {
+        const loading = document.getElementById('loading');
+        const content = document.getElementById('farm-content');
+
+        try {
+            const response = await apiFetch(`/api/farms/${farmId}`);
+            if (!response.ok) throw new Error('Failed to load farm');
+
+            const farm = await response.json();
+            renderFarm(farm);
+
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+
+            // Initialize map after removing hidden class to ensure proper sizing
+            initMap(farm);
+
+        } catch (error) {
+            console.error(error);
+            loading.innerHTML = `<p class="text-red-500">Error loading farm details.</p>`;
+        }
+    }
+
+    function renderFarm(farm) {
+        // Text Fields
+        document.getElementById('breadcrumb-name').textContent = farm.name;
+        document.getElementById('farm-name').textContent = farm.name;
+        document.getElementById('farm-soil').textContent = `Soil: ${farm.soil_type || 'N/A'}`;
+        document.getElementById('farm-water').textContent = `Water: ${farm.water_source || 'N/A'}`;
+        document.getElementById('farm-irrigation').textContent = farm.irrigation_type || 'N/A';
+        document.getElementById('farm-date').textContent = new Date(farm.created_at).toLocaleDateString();
+
+        // Stats
+        document.getElementById('area-ha').textContent = farm.area_hectares ? farm.area_hectares : '0';
+        document.getElementById('area-ac').textContent = farm.area_acres ? farm.area_acres : '0';
+
+        // Carbon
+        if (farm.carbon_value_inr) {
+            document.getElementById('carbon-value').textContent = formatCurrency(farm.carbon_value_inr);
+            document.getElementById('carbon-credits').textContent = farm.carbon_credits_annual;
+        }
+    }
+
+    function initMap(farm) {
+        if (!farm.polygon_coordinates || farm.polygon_coordinates.length === 0) {
+            document.getElementById('map').innerHTML = '<div class="h-full flex items-center justify-center text-gray-500 bg-gray-100">No map boundary data available</div>';
+            document.getElementById('farm-coords').textContent = 'Not Mapped';
+            return;
+        }
+
+        // Convert coordinates format for Leaflet
+        const polygonCoords = farm.polygon_coordinates.map(c => [c.lat, c.lon]);
+
+        // Calculate center or use first point
+        const center = polygonCoords[0];
+        document.getElementById('farm-coords').textContent = `${center[0].toFixed(4)}, ${center[1].toFixed(4)}`;
+
+        const map = L.map('map').setView(center, 16);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        const polygon = L.polygon(polygonCoords, {
+            color: 'yellow',
+            weight: 3,
+            fillOpacity: 0.2
+        }).addTo(map);
+
+        // Fit bounds to show whole farm
+        map.fitBounds(polygon.getBounds());
+    }
+</script>
+{% endblock %}

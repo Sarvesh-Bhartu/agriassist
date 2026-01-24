@@ -21,10 +21,10 @@ async def create_farm(
 ):
     """Create a new farm"""
     
-    # Check if user already has a farm
-    existing = db.query(Farm).filter(Farm.farmer_id == current_user.id).first()
-    if existing:
-        raise HTTPException(400, "Farmer already has a farm. Use update endpoint instead.")
+    # Check if user already has a farm - REMOVED strictly to allow multiple farms
+    # existing = db.query(Farm).filter(Farm.farmer_id == current_user.id).first()
+    # if existing:
+    #     raise HTTPException(400, "Farmer already has a farm. Use update endpoint instead.")
     
     # Calculate area if coordinates provided
     area_hectares = None

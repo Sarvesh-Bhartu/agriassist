@@ -80,6 +80,9 @@ class FarmResponse(BaseModel):
     area_hectares: Optional[Decimal]
     area_acres: Optional[Decimal]
     soil_type: Optional[str]
+    polygon_coordinates: Optional[List[dict]]
+    water_source: Optional[str]
+    irrigation_type: Optional[str]
     carbon_credits_annual: Optional[Decimal]
     carbon_value_inr: Optional[Decimal]
     created_at: datetime

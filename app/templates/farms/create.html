@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Farm - AgriAssist{% endblock %}
+
+{% block extra_css %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<style>
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 0.5rem;
+        z-index: 10;
+        /* Fix for Leaflet z-index issues */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Add New Farm</h1>
+            <p class="text-gray-600">Enter details about your farm land</p>
+        </div>
+
+        <form id="create-farm-form" class="space-y-6">
+            <!-- Farm Name -->
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Farm Name</label>
+                <input type="text" id="name" name="name" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                    placeholder="e.g., My Rice Field">
+            </div>
+
+            <!-- Map Section -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Farm Boundaries (Optional)</label>
+                <p class="text-xs text-gray-500 mb-2">Identify your farm on the map to get carbon credit calculations.
+                    Use the <span class="font-bold">Pentagon Icon</span> on the left to draw.</p>
+                <div id="map"></div>
+                <input type="hidden" id="polygon_coordinates" name="polygon_coordinates">
+            </div>
+
+            <!-- Soil Type -->
+            <div>
+                <label for="soil_type" class="block text-sm font-medium text-gray-700 mb-1">Soil Type</label>
+                <select id="soil_type" name="soil_type"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+                    <option value="">Select Soil Type</option>
+                    <option value="Alluvial">Alluvial (Loamy)</option>
+                    <option value="Black">Black (Clayey)</option>
+                    <option value="Red">Red (Sandy/Loamy)</option>
+                    <option value="Laterite">Laterite</option>
+                    <option value="Desert">Desert (Sandy)</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Water Source -->
+                <div>
+                    <label for="water_source" class="block text-sm font-medium text-gray-700 mb-1">Water Source</label>
+                    <select id="water_source" name="water_source"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+                        <option value="">Select Source</option>
+                        <option value="Well">Well</option>
+                        <option value="Canal">Canal</option>
+                        <option value="Rainfed">Rainfed</option>
+                        <option value="River">River</option>
+                        <option value="Borewell">Borewell</option>
+                    </select>
+                </div>
+
+                <!-- Irrigation Type -->
+                <div>
+                    <label for="irrigation_type" class="block text-sm font-medium text-gray-700 mb-1">Irrigation
+                        Type</label>
+                    <select id="irrigation_type" name="irrigation_type"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+                        <option value="">Select Method</option>
+                        <option value="Flood">Flood Irrigation</option>
+                        <option value="Drip">Drip Irrigation</option>
+                        <option value="Sprinkler">Sprinkler</option>
+                        <option value="Rainfed">Natural/Rainfed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit"
+                    class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700 transition duration-300">
+                    Create Farm & Calculate Credits
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+<script>
+    // Initialize Map
+    // Default center: India
+    const map = L.map('map').setView([20.5937, 78.9629], 5);
+
+    // Add Satellite Tiles (Esri World Imagery)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    }).addTo(map);
+
+    // FeatureGroup is to store editable layers
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    // Initialize Draw Control
+    const drawControl = new L.Control.Draw({
+        draw: {
+            polygon: {
+                allowIntersection: false,
+                showArea: true
+            },
+            marker: false,
+            circle: false,
+            circlemarker: false,
+            rectangle: false,
+            polyline: false
+        },
+        edit: {
+            featureGroup: drawnItems
+        }
+    });
+    map.addControl(drawControl);
+
+    // Handle Draw Events
+    map.on(L.Draw.Event.CREATED, function (e) {
+        const layer = e.layer;
+
+        // Remove existing polygons (restrict to one farm boundary per entry)
+        drawnItems.clearLayers();
+
+        drawnItems.addLayer(layer);
+
+        // Extract coordinates
+        // Leaflet returns [Lat, Lng], backend needs {lat, lon}
+        const latlngs = layer.getLatLngs()[0]; // It returns an array of arrays for polygons (rings)
+        const coordinates = latlngs.map(ll => ({
+            lat: ll.lat,
+            lon: ll.lng
+        }));
+
+        document.getElementById('polygon_coordinates').value = JSON.stringify(coordinates);
+    });
+
+    map.on(L.Draw.Event.DELETED, function (e) {
+        document.getElementById('polygon_coordinates').value = '';
+    });
+
+    // Try to get user location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            map.setView([lat, lng], 16);
+            // L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
+        }, () => {
+            console.log("Geolocation permission denied or error");
+        });
+    }
+
+    // Form Submission
+    document.getElementById('create-farm-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        // Remove empty strings
+        Object.keys(data).forEach(key => data[key] === '' && delete data[key]);
+
+        // Parse coordinates from string back to JSON object for the API
+        if (data.polygon_coordinates) {
+            try {
+                data.polygon_coordinates = JSON.parse(data.polygon_coordinates);
+            } catch (err) {
+                console.error("Invalid coordinates JSON", err);
+                delete data.polygon_coordinates;
+            }
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            const response = await fetch('/api/farms', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                showToast('Farm created successfully!', 'success');
+                setTimeout(() => window.location.href = '/dashboard', 1500);
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to create farm', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('An error occurred. Please try again.', 'error');
+        }
+    });
+</script>
+{% endblock %}

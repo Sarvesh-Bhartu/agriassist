@@ -111,6 +111,12 @@ async def create_farm_page(request: Request):
     return templates.TemplateResponse("farms/create.html", {"request": request})
 
 
+@app.get("/farms")
+async def farms_index_page(request: Request):
+    """Farm list page"""
+    return templates.TemplateResponse("farms/index.html", {"request": request})
+
+
 @app.get("/farms/{farm_id}")
 async def farm_detail_page(request: Request, farm_id: str):
     """Farm detail page"""

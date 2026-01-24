@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Agricultural Assistant Platform{% endblock %}</title>
-    
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/custom.css">
-    
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body class="bg-gray-50">
     <!-- Navigation -->
     <nav class="bg-green-700 text-white shadow-lg">
@@ -20,16 +22,16 @@
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center space-x-8">
                     <a href="/" class="text-xl font-bold">🌾 AgriAssist</a>
-                    
+
                     <div id="nav-links" class="hidden md:flex space-x-4">
                         <a href="/dashboard" class="hover:bg-green-600 px-3 py-2 rounded">Dashboard</a>
                         <a href="/plants/scanner" class="hover:bg-green-600 px-3 py-2 rounded">Plant Scanner</a>
-                        <a href="/farms/create" class="hover:bg-green-600 px-3 py-2 rounded">My Farms</a>
+                        <a href="/farms" class="hover:bg-green-600 px-3 py-2 rounded">My Farms</a>
                         <a href="/recommendations" class="hover:bg-green-600 px-3 py-2 rounded">Recommendations</a>
                         <a href="/leaderboard" class="hover:bg-green-600 px-3 py-2 rounded">Leaderboard</a>
                     </div>
                 </div>
-                
+
                 <div id="auth-section" class="flex items-center space-x-4">
                     <!-- Will be populated by JavaScript -->
                 </div>
@@ -58,16 +60,16 @@
     <!-- Main JavaScript -->
     <script src="/static/js/main.js"></script>
     <script src="/static/js/notifications.js"></script>
-    
+
     {% block extra_js %}{% endblock %}
-    
+
     <script>
         // Initialize authentication UI
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('token');
             const authSection = document.getElementById('auth-section');
             const navLinks = document.getElementById('nav-links');
-            
+
             if (token) {
                 // User is logged in
                 fetch('/api/auth/me', {
@@ -75,27 +77,27 @@
                         'Authorization': `Bearer ${token}`
                     }
                 })
-               .then(res => res.json())
-                .then(user => {
-                    authSection.innerHTML = `
+                    .then(res => res.json())
+                    .then(user => {
+                        authSection.innerHTML = `
                         <div class="flex items-center space-x-3">
                             <span class="font-medium">${user.name}</span>
                             <span class="bg-green-500 px-2 py-1 rounded text-sm">${user.total_points} pts</span>
                             <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded">Logout</button>
                         </div>
                     `;
-                    navLinks.classList.remove('hidden');
-                })
-                .catch(() => {
-                    // Token invalid, clear it
-                    localStorage.removeItem('token');
-                    showLoginButton();
-                });
+                        navLinks.classList.remove('hidden');
+                    })
+                    .catch(() => {
+                        // Token invalid, clear it
+                        localStorage.removeItem('token');
+                        showLoginButton();
+                    });
             } else {
                 showLoginButton();
             }
         });
-        
+
         function showLoginButton() {
             const authSection = document.getElementById('auth-section');
             authSection.innerHTML = `
@@ -103,11 +105,12 @@
                 <a href="/register" class="bg-green-500 px-4 py-2 rounded font-medium hover:bg-green-600">Register</a>
             `;
         }
-        
+
         function logout() {
             localStorage.removeItem('token');
             window.location.href = '/';
         }
     </script>
 </body>
+
 </html>
