@@ -1,13 +1,15 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import init_db
+from app.core.neo4j_driver import neo4j_driver
 from app.core.exceptions import AppException, app_exception_handler
 from app.core.config import settings
 
 # Import routers
-from app.routers import auth, plants, farms, recommendations, alerts, gamification, dashboard
+from app.routers import auth, plants, farms, recommendations, alerts, gamification, dashboard, voice_bot
 
 # Create FastAPI app
 app = FastAPI(
@@ -29,6 +31,11 @@ app.add_middleware(
 # Exception handlers
 app.add_exception_handler(AppException, app_exception_handler)
 
+# Ensure upload directories exist (required for Railway / cloud deployments)
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("uploads/plants", exist_ok=True)
+os.makedirs("uploads/farms", exist_ok=True)
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -44,16 +51,31 @@ app.include_router(farms.router)
 app.include_router(recommendations.router)
 app.include_router(alerts.router)
 app.include_router(gamification.router)
+app.include_router(voice_bot.router)
 
 
 # Initialize database on startup
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database tables"""
+    """Initialize database tables and connections"""
+    # SQLite
     init_db()
-    print("✅ Database initialized")
+    print("✅ SQLite database initialized")
+    
+    # Neo4j
+    try:
+        neo4j_driver.connect()
+    except Exception as e:
+        print(f"⚠️ Warning: Could not connect to Neo4j. Error: {e}")
+        
     print(f"🚀 {settings.APP_NAME} is running!")
     print(f"📚 API Documentation: http://localhost:8000/docs")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connections on shutdown"""
+    neo4j_driver.close()
 
 
 # Root endpoint - Landing page
@@ -72,6 +94,21 @@ async def health_check():
         "app": settings.APP_NAME,
         "version": "1.0.0"
     }
+
+
+@app.get("/health/neo4j")
+async def neo4j_health_check():
+    """Specific health check for Neo4j"""
+    try:
+        session = neo4j_driver.get_session()
+        result = session.run("RETURN 1 as n")
+        record = result.single()
+        session.close()
+        if record and record["n"] == 1:
+            return {"status": "connected", "database": "Neo4j"}
+        return {"status": "error", "message": "Unexpected result"}
+    except Exception as e:
+        return {"status": "disconnected", "error": str(e)}
 
 
 # Web page routes (for Jinja2 templates)
