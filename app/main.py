@@ -40,6 +40,11 @@ os.makedirs("uploads/farms", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 # Templates
 templates = Jinja2Templates(directory="app/templates")
 
