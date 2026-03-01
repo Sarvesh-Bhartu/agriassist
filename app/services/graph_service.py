@@ -81,22 +81,21 @@ class GraphService:
     def create_detection_record(self, farmer_id: str, detection_id: str, species: str, gps_lat: float, gps_lon: float, confidence: float):
         """Create a Plant node and record the SCANNED relationship in Neo4j."""
         query = """
-        MATCH (f:Farmer {id: $farmer_id})
+        MERGE (f:Farmer {id: $farmer_id})
         CREATE (p:Plant {id: $detection_id, species: $species, confidence: $confidence})
         MERGE (f)-[:SCANNED]->(p)
-        WITH p, f
-        // Only set location if gps coordinates exist
-        CALL apoc.do.when(
-            $gps_lat IS NOT NULL AND $gps_lon IS NOT NULL,
-            "SET p.location = point({latitude: $gps_lat, longitude: $gps_lon}) RETURN p",
-            "RETURN p",
-            {p: p, gps_lat: $gps_lat, gps_lon: $gps_lon}
-        ) YIELD value
-        RETURN value.p AS p
+        WITH p
+        // Use standard Cypher syntax to conditionally set location
+        FOREACH (ignoreMe IN CASE WHEN $gps_lat IS NOT NULL AND $gps_lon IS NOT NULL THEN [1] ELSE [] END |
+            SET p.location = point({latitude: $gps_lat, longitude: $gps_lon})
+        )
+        RETURN p
         """
         # Fallback query if apoc is not installed or just manual if check:
+        # Instead of MATCHing the farmer (which fails if the Farmer node doesn't exist yet/was wiped), 
+        # MERGE the farmer first to guarantee they exist, then CREATE the plant and link them.
         query_safe = """
-        MATCH (f:Farmer {id: $farmer_id})
+        MERGE (f:Farmer {id: $farmer_id})
         CREATE (p:Plant {id: $detection_id, species: $species, confidence: $confidence})
         MERGE (f)-[:SCANNED]->(p)
         """

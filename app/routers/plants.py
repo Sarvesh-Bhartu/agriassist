@@ -136,12 +136,12 @@ async def identify_plant(
     neighbors = []
     try:
         from app.services.graph_service import graph_service
-        g_lat = float(latitude) if latitude else None
-        g_lon = float(longitude) if longitude else None
+        g_lat = float(latitude) if latitude and str(latitude).strip() else None
+        g_lon = float(longitude) if longitude and str(longitude).strip() else None
         
         # 1. Record detection in Graph
         graph_service.create_detection_record(
-            farmer_id=current_user.id,
+            farmer_id=str(current_user.id),
             detection_id=str(detection.id),
             species=species_name,
             gps_lat=g_lat,
@@ -153,7 +153,7 @@ async def identify_plant(
         if is_invasive and g_lat and g_lon:
             neighbors = graph_service.find_nearby_farmers(
                 plant_id=str(detection.id),
-                farmer_id=current_user.id,
+                farmer_id=str(current_user.id),
                 max_distance_meters=5000
             )
             
