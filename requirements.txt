@@ -38,7 +38,10 @@ email-validator>=2.1.0
 # Graph Database
 neo4j==5.16.0
 
-# Machine Learning & Computer Vision
+# Machine Learning & Computer Vision (CPU only to avoid 10-minute build timeout)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
 ultralytics
 opencv-python-headless
 
