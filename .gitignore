@@ -61,3 +61,16 @@ htmlcov/
 
 # Alembic
 alembic/versions/*.pyc
+
+# Debug & Test Scripts (temporary)
+debug_gemini_models.py
+test_gemini_25.py
+test_gemini_quota.py
+exhaustive_model_test.py
+list_gemini_models.py
+available_models.txt
+model_test_results.txt
+
+# Temp files
+*.txt.bak
+agriassist.db
