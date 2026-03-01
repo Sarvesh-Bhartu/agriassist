@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.config import settings
@@ -12,7 +12,7 @@ from app.core.database import get_db
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # HTTP Bearer for JWT
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -53,13 +53,28 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    security_scopes: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
-    """Get current authenticated user from JWT token"""
+    """Get current authenticated user from JWT token (supports both Cookie and Bearer header)"""
     from app.models.user import Farmer
     
-    token = credentials.credentials
+    # 1. First try to get token from HTTPOnly cookie
+    token = request.cookies.get("access_token")
+    
+    # 2. If not found, try to get from Authorization header (Bearer token)
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+        
     payload = decode_token(token)
     
     user_id: str = payload.get("sub")

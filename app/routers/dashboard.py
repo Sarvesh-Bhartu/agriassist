@@ -48,6 +48,9 @@ async def get_dashboard_stats(
         PlantDetection.farmer_id == current_user.id
     ).order_by(PlantDetection.detection_date.desc()).limit(5).all()
     
+    from app.services.gamification_service import gamification_service
+    level_data = gamification_service.get_user_level(current_user.total_points)
+
     return {
         "user": {
             "name": current_user.name,
@@ -55,7 +58,8 @@ async def get_dashboard_stats(
             "total_points": current_user.total_points,
             "badges": current_user.badges or [],
             "district": current_user.district,
-            "state": current_user.state
+            "state": current_user.state,
+            "level": level_data
         },
         "farms": {
             "count": len(farms),

@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Recommendations - AgriAssist{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">💡 Farming Recommendations & Advice</h1>
+        <p class="text-gray-600 mb-8">Get expert guidance and actionable advice for your farm natively from the browser
+            or by phone.</p>
+
+        <!-- Voice Bot Connect -->
+        <div class="bg-blue-50 border border-blue-100 p-8 rounded-xl shadow-sm text-center">
+            <div class="text-5xl mb-4">🎙️</div>
+            <h2 class="text-2xl font-bold mb-3 text-blue-900">Talk to Krishi Sahayata AI</h2>
+            <p class="text-gray-700 mb-6 max-w-lg mx-auto">
+                Call our intelligent agriculture assistant directly from your computer or phone browser. Ask questions
+                in Hindi about your crops, weather, and market prices without using your phone's cellular minutes.
+            </p>
+
+            <div id="voice-status"
+                class="text-sm font-semibold text-gray-500 mb-4 px-4 py-2 bg-white inline-block rounded-full shadow-sm">
+                Disconnected</div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button id="call-ai-btn"
+                    class="bg-blue-600 text-white px-8 py-4 rounded-full font-bold shadow-md hover:bg-blue-700 hover:shadow-lg transition transform hover:-translate-y-1 text-lg w-full sm:w-auto"
+                    onclick="toggleCall()">
+                    Connect to AI Assistant
+                </button>
+
+                <button id="keypad-toggle-btn"
+                    class="hidden bg-white text-blue-600 border-2 border-blue-200 px-6 py-4 rounded-full font-bold shadow-sm hover:bg-blue-50 transition text-lg w-full sm:w-auto flex items-center justify-center gap-2"
+                    onclick="toggleKeypad()">
+                    <span>⌨️</span> Keypad
+                </button>
+            </div>
+
+            <!-- Visual Keypad -->
+            <div id="keypad-container"
+                class="hidden mt-8 max-w-xs mx-auto bg-white p-6 rounded-2xl shadow-inner border border-gray-100">
+                <div class="grid grid-cols-3 gap-4">
+                    <!-- Keypad Buttons 1-9 -->
+                    <button class="keypad-btn" onclick="sendKey('1')">1</button>
+                    <button class="keypad-btn" onclick="sendKey('2')">2</button>
+                    <button class="keypad-btn" onclick="sendKey('3')">3</button>
+                    <button class="keypad-btn" onclick="sendKey('4')">4</button>
+                    <button class="keypad-btn" onclick="sendKey('5')">5</button>
+                    <button class="keypad-btn" onclick="sendKey('6')">6</button>
+                    <button class="keypad-btn" onclick="sendKey('7')">7</button>
+                    <button class="keypad-btn" onclick="sendKey('8')">8</button>
+                    <button class="keypad-btn" onclick="sendKey('9')">9</button>
+                    <!-- Bottom Row -->
+                    <button class="keypad-btn" onclick="sendKey('*')">*</button>
+                    <button class="keypad-btn" onclick="sendKey('0')">0</button>
+                    <button class="keypad-btn" onclick="sendKey('#')">#</button>
+                </div>
+            </div>
+
+            <style>
+                .keypad-btn {
+                    @apply bg-gray-50 border-2 border-gray-100 py-4 rounded-xl text-xl font-bold text-gray-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition active:scale-95;
+                }
+
+                .keypad-btn.active {
+                    @apply bg-blue-600 border-blue-600 text-white scale-95;
+                }
+            </style>
+
+            <div class="mt-8 text-sm text-gray-500 bg-white bg-opacity-50 p-4 rounded-lg">
+                <p><strong>Prefer a phone call?</strong> You can also dial our toll-free number from any standard mobile
+                    phone to access the same AI directly via voice connection.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Twilio Voice SDK -->
+<script type="text/javascript" src="https://unpkg.com/@twilio/voice-sdk@2.10.2/dist/twilio.min.js"></script>
+<script>
+    let twilioDevice = null;
+    let activeCall = null;
+    let keypadVisible = false;
+
+    function toggleKeypad() {
+        const container = document.getElementById('keypad-container');
+        keypadVisible = !keypadVisible;
+        if (keypadVisible) {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    function sendKey(digit) {
+        if (activeCall) {
+            console.log("Sending Digit:", digit);
+            activeCall.sendDigits(digit);
+
+            // Visual feedback for screen clicks
+            highlightKey(digit);
+        }
+    }
+
+    function highlightKey(digit) {
+        // Find the button with that digit text
+        const buttons = document.querySelectorAll('.keypad-btn');
+        buttons.forEach(btn => {
+            if (btn.textContent.trim() === digit) {
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 150);
+            }
+        });
+    }
+
+    async function toggleCall() {
+        const btn = document.getElementById('call-ai-btn');
+        const keypadBtn = document.getElementById('keypad-toggle-btn');
+        const keypadContainer = document.getElementById('keypad-container');
+        const status = document.getElementById('voice-status');
+
+        if (activeCall) {
+            activeCall.disconnect();
+            btn.innerHTML = "Connect to AI Assistant";
+            btn.className = "bg-blue-600 text-white px-8 py-4 rounded-full font-bold shadow-md hover:bg-blue-700 hover:shadow-lg transition transform hover:-translate-y-1 text-lg w-full sm:w-auto";
+            status.innerHTML = "Disconnected";
+            status.className = "text-sm font-semibold text-gray-500 mb-4 px-4 py-2 bg-white inline-block rounded-full shadow-sm";
+
+            keypadBtn.classList.add('hidden');
+            keypadContainer.classList.add('hidden');
+            keypadVisible = false;
+
+            activeCall = null;
+            return;
+        }
+
+        btn.innerHTML = "Connecting...";
+        status.innerHTML = "Requesting Secure Token...";
+        status.className = "text-sm font-semibold text-yellow-600 mb-4 px-4 py-2 bg-white inline-block rounded-full shadow-sm";
+
+        try {
+            // Get Voice Token
+            const tokenRes = await apiFetch('/api/voice/token');
+            const data = await tokenRes.json();
+
+            if (data.error) {
+                alert(data.error);
+                status.innerHTML = "Error: Missing API Keys";
+                status.className = "text-sm font-semibold text-red-600 mb-4 px-4 py-2 bg-white inline-block rounded-full shadow-sm";
+                btn.innerHTML = "Connect to AI Assistant";
+                return;
+            }
+
+            // Init modern Twilio Voice Device
+            if (typeof Twilio === 'undefined') {
+                throw new Error("Twilio SDK failed to load. Please check your internet connection.");
+            }
+            twilioDevice = new Twilio.Device(data.token, {
+                debug: true,
+                codecPreferences: ['opus', 'pcmu']
+            });
+
+            twilioDevice.on('registered', async () => {
+                status.innerHTML = "Connecting Call...";
+                try {
+                    activeCall = await twilioDevice.connect();
+
+                    activeCall.on('accept', () => {
+                        status.innerHTML = "🟢 Connected to IVR (Speak Now)";
+                        status.className = "text-sm font-semibold text-green-600 mb-4 px-4 py-2 bg-white inline-block rounded-full shadow-sm";
+                        btn.innerHTML = "End Call";
+                        btn.className = "bg-red-600 text-white px-8 py-4 rounded-full font-bold shadow-md hover:bg-red-700 transition w-full sm:w-auto text-lg";
+                        keypadBtn.classList.remove('hidden');
+                    });
+
+                    activeCall.on('disconnect', () => {
+                        activeCall = null;
+                        btn.innerHTML = "Connect to AI Assistant";
+                        btn.className = "bg-blue-600 text-white px-8 py-4 rounded-full font-bold shadow-md hover:bg-blue-700 hover:shadow-lg transition transform hover:-translate-y-1 text-lg w-full sm:w-auto";
+                        status.innerHTML = "Connection Closed";
+                        status.className = "text-sm font-semibold text-gray-500 mb-4 px-4 py-2 bg-white inline-block rounded-full shadow-sm";
+                        keypadBtn.classList.add('hidden');
+                        keypadContainer.classList.add('hidden');
+                        keypadVisible = false;
+                    });
+
+                } catch (err) {
+                    console.error("Connect error:", err);
+                    alert("Failed to connect call: " + err.message);
+                }
+            });
+
+            twilioDevice.on('error', (error) => {
+                console.error("Twilio Error:", error);
+                alert("Call failed: " + error.message);
+                activeCall = null;
+            });
+
+            twilioDevice.register();
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to initialize voice interface. Details: " + err.message);
+        }
+    }
+
+    // Capture keyboard input to send DTMF tones during an active call
+    document.addEventListener('keydown', (event) => {
+        if (activeCall && /^[0-9\*#]$/.test(event.key)) {
+            activeCall.sendDigits(event.key);
+            highlightKey(event.key);
+        }
+    });
+</script>
+{% endblock %}

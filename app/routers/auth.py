@@ -12,6 +12,7 @@ from app.core.security import (
 from app.models.user import Farmer
 from app.models.schemas import UserRegister, UserLogin, Token, UserResponse
 from app.utils.validators import Validators
+from app.services.graph_service import graph_service
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -64,6 +65,18 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_farmer)
 
+    # Sync with Neo4j Graph
+    try:
+        graph_service.create_farmer_node(
+            farmer_id=new_farmer.id,
+            phone=new_farmer.phone,
+            name=new_farmer.name,
+            district=new_farmer.district,
+            state=new_farmer.state
+        )
+    except Exception as e:
+        print(f"Warning: Failed to sync farmer to Neo4j: {e}")
+
     access_token = create_access_token(
         data={"sub": str(new_farmer.id)},
         expires_delta=timedelta(hours=24),
@@ -110,4 +123,18 @@ async def get_current_user_info(
     current_user: Farmer = Depends(get_current_user),
 ):
     """Get current authenticated user"""
-    return current_user
+    from app.services.gamification_service import gamification_service
+    
+    level_data = gamification_service.get_user_level(current_user.total_points)
+    
+    return {
+        "id": current_user.id,
+        "phone": current_user.phone,
+        "name": current_user.name,
+        "email": current_user.email,
+        "total_points": current_user.total_points,
+        "badges": current_user.badges or [],
+        "district": current_user.district,
+        "state": current_user.state,
+        "level": level_data
+    }

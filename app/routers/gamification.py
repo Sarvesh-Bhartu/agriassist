@@ -58,9 +58,12 @@ async def get_my_stats(
         if badge_id in gamification_service.BADGES
     ]
     
+    level_data = gamification_service.get_user_level(current_user.total_points)
+    
     return {
         "rank": rank,
         "total_points": current_user.total_points,
         "badges": badges_info,
-        "badges_count": len(badges_info)
+        "badges_count": len(badges_info),
+        "level": level_data
     }

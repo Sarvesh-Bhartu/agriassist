@@ -115,6 +115,9 @@
         attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
     }).addTo(map);
 
+    // Fetch and draw all existing farms using global utility
+    fetchAndDrawAllFarms(map);
+
     // FeatureGroup is to store editable layers
     const drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);

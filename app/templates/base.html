@@ -20,19 +20,48 @@
     <nav class="bg-green-700 text-white shadow-lg">
         <div class="container mx-auto px-4">
             <div class="flex items-center justify-between h-16">
-                <div class="flex items-center space-x-8">
-                    <a href="/" class="text-xl font-bold">🌾 AgriAssist</a>
+                <!-- Logo -->
+                <a href="/" class="text-xl font-bold flex-shrink-0">🌾 AgriAssist</a>
 
-                    <div id="nav-links" class="hidden md:flex space-x-4">
-                        <a href="/dashboard" class="hover:bg-green-600 px-3 py-2 rounded">Dashboard</a>
-                        <a href="/plants/scanner" class="hover:bg-green-600 px-3 py-2 rounded">Plant Scanner</a>
-                        <a href="/farms" class="hover:bg-green-600 px-3 py-2 rounded">My Farms</a>
-                        <a href="/recommendations" class="hover:bg-green-600 px-3 py-2 rounded">Recommendations</a>
-                        <a href="/leaderboard" class="hover:bg-green-600 px-3 py-2 rounded">Leaderboard</a>
-                    </div>
+                <!-- Desktop Navigation Links -->
+                <div id="nav-links" class="hidden items-center space-x-4 ml-6">
+                    <a href="/dashboard" class="hover:bg-green-600 px-3 py-2 rounded">Dashboard</a>
+                    <a href="/plants/scanner" class="hover:bg-green-600 px-3 py-2 rounded">Plant Scanner</a>
+                    <a href="/farms" class="hover:bg-green-600 px-3 py-2 rounded">My Farms</a>
+                    <a href="/recommendations" class="hover:bg-green-600 px-3 py-2 rounded">Recommendations</a>
+                    <a href="/plants/history" class="hover:bg-green-600 px-3 py-2 rounded">Plant Scan History</a>
+                    <a href="/leaderboard" class="hover:bg-green-600 px-3 py-2 rounded">Leaderboard</a>
                 </div>
 
-                <div id="auth-section" class="flex items-center space-x-4">
+                <!-- Desktop Auth Section -->
+                <div id="auth-section" class="hidden md:flex items-center space-x-4 ml-auto">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+
+                <!-- Mobile Menu Button (Hamburger) -->
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-btn"
+                        class="text-white hover:text-green-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation Menu (Initially hidden) -->
+            <div id="mobile-menu" class="hidden md:hidden pb-4 pt-2">
+                <div id="mobile-nav-links" class="flex flex-col space-y-2 mb-4 hidden">
+                    <a href="/dashboard" class="hover:bg-green-600 block px-3 py-2 rounded">Dashboard</a>
+                    <a href="/plants/scanner" class="hover:bg-green-600 block px-3 py-2 rounded">Plant Scanner</a>
+                    <a href="/farms" class="hover:bg-green-600 block px-3 py-2 rounded">My Farms</a>
+                    <a href="/recommendations" class="hover:bg-green-600 block px-3 py-2 rounded">Recommendations</a>
+                    <a href="/plants/history" class="hover:bg-green-600 block px-3 py-2 rounded">Plant Scan History</a>
+                    <a href="/leaderboard" class="hover:bg-green-600 block px-3 py-2 rounded">Leaderboard</a>
+                </div>
+                <!-- Mobile Auth Section -->
+                <div id="mobile-auth-section" class="border-t border-green-600 pt-4 flex flex-col space-y-3">
                     <!-- Will be populated by JavaScript -->
                 </div>
             </div>
@@ -64,11 +93,19 @@
     {% block extra_js %}{% endblock %}
 
     <script>
+        // Toggle Mobile Menu
+        document.getElementById('mobile-menu-btn').addEventListener('click', function () {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+
         // Initialize authentication UI
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('token');
             const authSection = document.getElementById('auth-section');
+            const mobileAuthSection = document.getElementById('mobile-auth-section');
             const navLinks = document.getElementById('nav-links');
+            const mobileNavLinks = document.getElementById('mobile-nav-links');
 
             if (token) {
                 // User is logged in
@@ -77,16 +114,32 @@
                         'Authorization': `Bearer ${token}`
                     }
                 })
-                    .then(res => res.json())
+                    .then(res => {
+                        if (!res.ok) throw new Error('Token expired');
+                        return res.json();
+                    })
                     .then(user => {
+                        // Desktop Auth UI
                         authSection.innerHTML = `
                         <div class="flex items-center space-x-3">
-                            <span class="font-medium">${user.name}</span>
-                            <span class="bg-green-500 px-2 py-1 rounded text-sm">${user.total_points} pts</span>
-                            <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded">Logout</button>
+                            <span class="font-medium truncate max-w-[120px] lg:max-w-none" title="${user.level ? user.level.current_level : ''}">${user.level ? user.level.current_icon + ' ' : ''}${user.name}</span>
+                            <span class="bg-green-500 px-2 py-1 rounded text-sm whitespace-nowrap">${user.total_points} pts</span>
+                            <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded whitespace-nowrap">Logout</button>
                         </div>
-                    `;
-                        navLinks.classList.remove('hidden');
+                        `;
+
+                        // Mobile Auth UI
+                        mobileAuthSection.innerHTML = `
+                        <div class="flex items-center justify-between px-3">
+                            <span class="font-medium" title="${user.level ? user.level.current_level : ''}">${user.level ? user.level.current_icon + ' ' : ''}${user.name}</span>
+                            <span class="bg-green-500 px-2 py-1 rounded text-sm">${user.total_points} pts</span>
+                        </div>
+                        <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 mx-3 rounded text-center">Logout</button>
+                        `;
+
+                        // Show navigation links on desktop, while keeping them hidden on mobile
+                        navLinks.classList.add('md:flex');
+                        mobileNavLinks.classList.remove('hidden');
                     })
                     .catch(() => {
                         // Token invalid, clear it
@@ -100,15 +153,66 @@
 
         function showLoginButton() {
             const authSection = document.getElementById('auth-section');
+            const mobileAuthSection = document.getElementById('mobile-auth-section');
+
+            // Desktop Login UI
             authSection.innerHTML = `
-                <a href="/login" class="bg-white text-green-700 px-4 py-2 rounded font-medium hover:bg-gray-100">Login</a>
-                <a href="/register" class="bg-green-500 px-4 py-2 rounded font-medium hover:bg-green-600">Register</a>
+                <a href="/login" class="bg-white text-green-700 px-4 py-2 rounded font-medium hover:bg-gray-100 whitespace-nowrap">Login</a>
+                <a href="/register" class="bg-green-500 px-4 py-2 rounded font-medium hover:bg-green-600 whitespace-nowrap">Register</a>
+            `;
+
+            // Mobile Login UI
+            mobileAuthSection.innerHTML = `
+                <a href="/login" class="bg-white text-green-700 px-4 py-2 rounded font-medium hover:bg-gray-100 text-center mx-3 block">Login</a>
+                <a href="/register" class="bg-green-500 border border-green-500 text-white px-4 py-2 rounded font-medium hover:bg-green-600 text-center mx-3 block">Register</a>
             `;
         }
 
         function logout() {
             localStorage.removeItem('token');
             window.location.href = '/';
+        }
+
+        // --- GLOBAL MAP UTILITIES ---
+        async function fetchAndDrawAllFarms(mapInstance) {
+            if (!mapInstance) return;
+
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch('/api/farms/all', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+
+                data.farms.forEach(farm => {
+                    if (farm.polygon_coordinates && farm.polygon_coordinates.length > 0) {
+                        const latlngs = farm.polygon_coordinates.map(coord => [coord.lat, coord.lon]);
+
+                        // Green for user's own, Blue for neighbors
+                        const color = farm.is_own ? '#16a34a' : '#2563eb';
+                        const fillColor = farm.is_own ? '#dcfce7' : '#dbeafe';
+
+                        const polygon = L.polygon(latlngs, {
+                            color: color,
+                            fillColor: fillColor,
+                            fillOpacity: 0.4,
+                            weight: 2,
+                            interactive: true
+                        });
+
+                        // Add a simple popup for identification
+                        polygon.bindPopup(`<strong>${farm.name}</strong><br>${farm.is_own ? 'Your Farm' : 'Neighbor'}`);
+                        polygon.addTo(mapInstance);
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching global farms:', error);
+            }
         }
     </script>
 </body>

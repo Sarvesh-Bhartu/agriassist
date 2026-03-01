@@ -41,6 +41,49 @@ class GamificationService:
         }
     }
     
+    # Level Progression Tiers
+    LEVEL_TIERS = [
+        {'name': 'Novice Planter', 'icon': '🌱', 'min_points': 0, 'max_points': 999},
+        {'name': 'Growing Cultivator', 'icon': '🌿', 'min_points': 1000, 'max_points': 2499},
+        {'name': 'Skilled Agronomist', 'icon': '🪴', 'min_points': 2500, 'max_points': 4999},
+        {'name': 'Master Harvester', 'icon': '🌳', 'min_points': 5000, 'max_points': float('inf')}
+    ]
+    
+    def get_user_level(self, current_points: int) -> Dict:
+        """Calculate the user's current gamification level and progress to the next"""
+        current_tier = None
+        next_tier = None
+        
+        for i, tier in enumerate(self.LEVEL_TIERS):
+            if tier['min_points'] <= current_points <= tier['max_points']:
+                current_tier = tier
+                if i + 1 < len(self.LEVEL_TIERS):
+                    next_tier = self.LEVEL_TIERS[i + 1]
+                break
+                
+        if not current_tier:
+            return {}
+            
+        progress_percentage = 100
+        points_needed = 0
+        
+        if next_tier:
+            tier_range = next_tier['min_points'] - current_tier['min_points']
+            points_into_tier = current_points - current_tier['min_points']
+            progress_percentage = min(100, max(0, int((points_into_tier / tier_range) * 100)))
+            points_needed = next_tier['min_points'] - current_points
+            
+        return {
+            'current_level': current_tier['name'],
+            'current_icon': current_tier['icon'],
+            'next_level': next_tier['name'] if next_tier else None,
+            'next_icon': next_tier['icon'] if next_tier else None,
+            'progress_percentage': progress_percentage,
+            'points_to_next': points_needed,
+            'current_points': current_points,
+            'next_tier_points': next_tier['min_points'] if next_tier else current_tier['min_points']
+        }
+    
     async def add_points(
         self,
         db: Session,

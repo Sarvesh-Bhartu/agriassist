@@ -26,6 +26,17 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class LevelData(BaseModel):
+    current_level: str
+    current_icon: str
+    next_level: Optional[str]
+    next_icon: Optional[str]
+    progress_percentage: int
+    points_to_next: int
+    current_points: int
+    next_tier_points: int
+
+
 class UserResponse(BaseModel):
     id: str
     phone: str
@@ -35,6 +46,7 @@ class UserResponse(BaseModel):
     badges: List[str]
     district: Optional[str]
     state: Optional[str]
+    level: Optional[LevelData] = None
     
     class Config:
         from_attributes = True
@@ -60,6 +72,10 @@ class PlantDetectionResponse(BaseModel):
     detection_date: datetime
     points_awarded: int
     image_path: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
+    destroyed: bool
+    destruction_verified: bool
     
     class Config:
         from_attributes = True
@@ -134,4 +150,5 @@ class LeaderboardEntry(BaseModel):
     name: str
     points: int
     badges: List[str]
+    badges_icons: List[str] = []
     district: Optional[str]
