@@ -44,7 +44,7 @@
         const empty = document.getElementById('empty-state');
 
         try {
-            const response = await apiFetch('/api/farms');
+            const response = await apiFetch('/api/farms/');
             if (response.ok) {
                 const farms = await response.json();
                 loading.classList.add('hidden');
