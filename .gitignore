@@ -74,3 +74,14 @@ model_test_results.txt
 # Temp files
 *.txt.bak
 agriassist.db
+venv/
+
+# Diagnostic and Test Scripts
+delete_farms.py
+IEEE_Conference_Template (3).pdf
+ieee.txt
+test_query.py
+test_script_2.py
+test_script.py
+run_gemma.py
+run_qwen.py
