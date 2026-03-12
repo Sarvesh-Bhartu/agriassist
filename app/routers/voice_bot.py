@@ -112,7 +112,7 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         gather = Gather(
             input='speech',
             action='/api/voice/ai-response',
-            language='hi-IN',
+            language='en-IN', # Hindi ASR is not supported by Default Basic engine
             timeout=5,
             speechTimeout='auto'
         )
