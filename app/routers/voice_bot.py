@@ -10,6 +10,7 @@ from app.core.security import get_current_user
 from sqlalchemy import func
 import urllib.parse
 import logging
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +123,9 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         # REAL Market Prices from Database (Swapped to option 2 per user feedback)
         logger.info("Fetching market prices...")
         # Try last 7 days first
+        seven_days_ago = datetime.utcnow().date() - timedelta(days=7)
         prices = db.query(MarketPrice).filter(
-            MarketPrice.price_date >= func.date(func.current_date(), '-7 days')
+            MarketPrice.price_date >= seven_days_ago
         ).order_by(MarketPrice.price_date.desc()).limit(5).all()
         
         # Fallback: Just get the 5 most recent prices EVER if the 7-day filter is empty
