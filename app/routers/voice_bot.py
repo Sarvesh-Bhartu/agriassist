@@ -72,7 +72,7 @@ async def handle_incoming_call(request: Request, db: Session = Depends(get_db)):
         response.say(
             "नमस्ते! कृषि सहायता में आपका स्वागत है। आप हमारे सिस्टम में पंजीकृत नहीं हैं। कृपया ऐप डाउनलोड करके रजिस्टर करें।",
             language='hi-IN',
-            voice='alice'
+            voice='Polly.Aditi'
         )
         return Response(content=str(response), media_type='text/xml')
         
@@ -91,7 +91,7 @@ async def handle_incoming_call(request: Request, db: Session = Depends(get_db)):
         "या AI सहायक से बात करने के लिए 4 दबाएं।"
     )
     
-    gather.say(greeting + menu, language='hi-IN', voice='alice')
+    gather.say(greeting + menu, language='hi-IN', voice='Polly.Aditi')
     response.append(gather)
     
     return Response(content=str(response), media_type='text/xml')
@@ -112,11 +112,11 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         gather = Gather(
             input='speech',
             action='/api/voice/ai-response',
-            language='en-IN', # Hindi ASR is not supported by Default Basic engine
+            language='hi-IN', # Hindi ASR is not supported by Default Basic engine
             timeout=5,
             speechTimeout='auto'
         )
-        gather.say("अपना सवाल बोलें।", language='hi-IN', voice='alice')
+        gather.say("अपना सवाल बोलें।", language='hi-IN', voice='Polly.Aditi')
         response.append(gather)
         
     elif digit_pressed == '2':
@@ -143,7 +143,7 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
                 price_text += f"{p.crop_name} {int(quintal_price)} रुपये प्रति क्विंटल, भाव {trend_text}। "
         
         logger.info(f"Responding with Market Price Text: {price_text}")
-        response.say(price_text, language='hi-IN', voice='alice')
+        response.say(price_text, language='hi-IN', voice='Polly.Aditi')
         response.redirect('/api/voice/webhook')
         
     elif digit_pressed == '3':
@@ -169,18 +169,18 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         try:
             weather_report = await gemini_service.generate_text_response(weather_context)
             logger.info(f"Gemini Weather Response: {weather_report}")
-            response.say(weather_report, language='hi-IN', voice='alice')
+            response.say(weather_report, language='hi-IN', voice='Polly.Aditi')
         except Exception as e:
             logger.error(f"Gemini Weather Error: {e}")
-            response.say("मौसम की जानकारी प्राप्त करने में समस्या आ रही है।", language='hi-IN', voice='alice')
+            response.say("मौसम की जानकारी प्राप्त करने में समस्या आ रही है।", language='hi-IN', voice='Polly.Aditi')
             
         response.redirect('/api/voice/webhook')
         
     elif digit_pressed == '1':
-        response.say("यह सुविधा जल्द ही आ रही है।", language='hi-IN', voice='alice')
+        response.say("यह सुविधा जल्द ही आ रही है।", language='hi-IN', voice='Polly.Aditi')
         response.redirect('/api/voice/webhook')
     else:
-        response.say("गलत विकल्प।", language='hi-IN', voice='alice')
+        response.say("गलत विकल्प।", language='hi-IN', voice='Polly.Aditi')
         response.redirect('/api/voice/webhook')
 
     return Response(content=str(response), media_type='text/xml')
@@ -197,7 +197,7 @@ async def generate_ai_response(request: Request, db: Session = Depends(get_db)):
     response = VoiceResponse()
     
     if not transcription:
-        response.say("मुझे समझ नहीं आया।", language='hi-IN', voice='alice')
+        response.say("मुझे समझ नहीं आया।", language='hi-IN', voice='Polly.Aditi')
         response.redirect('/api/voice/menu?Digits=4')
         return Response(content=str(response), media_type='text/xml')
 
@@ -209,7 +209,7 @@ async def generate_ai_response(request: Request, db: Session = Depends(get_db)):
         farmer = db.query(Farmer).filter(Farmer.phone == caller_phone).first()
         
     if not farmer:
-        response.say("खाता नहीं मिला।", language='hi-IN', voice='alice')
+        response.say("खाता नहीं मिला।", language='hi-IN', voice='Polly.Aditi')
         return Response(content=str(response), media_type='text/xml')
         
     farm = db.query(Farm).filter(Farm.farmer_id == farmer.id).first()
@@ -234,8 +234,8 @@ async def generate_ai_response(request: Request, db: Session = Depends(get_db)):
     # Get answer from Gemini
     ai_answer = await gemini_service.generate_text_response(context)
     
-    response.say(ai_answer, language='hi-IN', voice='alice')
-    response.say("मुख्य मेनू के लिए कोई भी नंबर दबाएं।", language='hi-IN', voice='alice')
+    response.say(ai_answer, language='hi-IN', voice='Polly.Aditi')
+    response.say("मुख्य मेनू के लिए कोई भी नंबर दबाएं।", language='hi-IN', voice='Polly.Aditi')
     
     gather = Gather(action='/api/voice/webhook', num_digits=1, timeout=5)
     response.append(gather)
