@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Farm Details - AgriAssist{% endblock %}
+
+{% block extra_css %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 0.5rem;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6 flex items-center text-sm text-gray-500">
+        <a href="/farms" class="hover:text-green-600">My Farms</a>
+        <span class="mx-2">/</span>
+        <span id="breadcrumb-name" class="font-semibold text-gray-700">Loading...</span>
+    </div>
+
+    <div id="loading" class="flex justify-center py-12">
+        <div class="spinner border-4 border-green-200 border-t-green-600 rounded-full h-12 w-12 animate-spin"></div>
+    </div>
+
+    <div id="farm-content" class="hidden">
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Left Column: Map & Key Details -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Header -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h1 id="farm-name" class="text-3xl font-bold text-gray-800 mb-2"></h1>
+                    <div class="flex items-center space-x-4 text-gray-600">
+                        <span class="flex items-center"><span class="mr-1">🌱</span> <span id="farm-soil"></span></span>
+                        <span class="flex items-center"><span class="mr-1">💧</span> <span
+                                id="farm-water"></span></span>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="bg-white rounded-lg shadow-sm p-2">
+                    <div id="map"></div>
+                    <p class="text-xs text-gray-400 mt-2 text-center">Satellite view of your farm boundary</p>
+                </div>
+
+                <!-- AI Crop Advisor -->
+                <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-green-500 mt-6">
+                    <h2 class="text-xl font-bold flex items-center text-gray-800 mb-4">
+                        <span class="mr-2">✨</span> AI Crop Advisor
+                    </h2>
+                    <p class="text-sm text-gray-600 mb-4">Get hyper-personalized crop recommendations based on your soil
+                        type and local agronomy trends in your area.</p>
+
+                    <div id="ai-inputs">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Budget (INR)</label>
+                                <input type="number" id="budget-input"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                                    placeholder="e.g. 50000" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Season</label>
+                                <select id="season-input"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                                    <option value="Kharif (Monsoon)">Kharif (Monsoon)</option>
+                                    <option value="Rabi (Winter)">Rabi (Winter)</option>
+                                    <option value="Zaid (Summer)">Zaid (Summer)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button id="get-advice-btn"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                            onclick="getAIAdvice()">
+                            Generate Agronomy Plan
+                        </button>
+                    </div>
+
+                    <!-- Locked UI Message -->
+                    <div id="ai-locked-msg" class="hidden p-4 rounded-lg bg-gray-50 border border-gray-200 text-center">
+                        <span class="text-2xl mb-2 block">🔒</span>
+                        <p class="text-sm font-medium text-gray-700">This feature will unlock once your farm is approved.</p>
+                        <p class="text-xs text-gray-500 mt-1">Upload your land document for admin verification to access AI Agronomy Plans.</p>
+                    </div>
+
+                    <!-- Result Container -->
+                    <div id="ai-result-container" class="mt-6 hidden">
+                        <div class="p-4 bg-green-50 rounded text-green-900 border border-green-200">
+                            <h3 class="font-bold text-lg mb-2" id="ai-crop-name"></h3>
+                            <p class="text-sm mb-4" id="ai-crop-advice"></p>
+
+                            <div class="grid grid-cols-2 gap-2 text-sm mb-4">
+                                <div class="bg-white p-2 rounded shadow-sm">
+                                    <span class="block text-gray-500 text-xs">Expected Return</span>
+                                    <span class="font-bold" id="ai-crop-profit"></span>
+                                </div>
+                                <div class="bg-white p-2 rounded shadow-sm">
+                                    <span class="block text-gray-500 text-xs">Timeline</span>
+                                    <span class="font-bold" id="ai-crop-timeline"></span>
+                                </div>
+                            </div>
+
+                            <div class="text-sm">
+                                <strong class="text-red-600">⚠️ Risk Factors:</strong>
+                                <ul id="ai-crop-risks" class="list-disc pl-5 mt-1 text-gray-700"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Stats & Carbon -->
+            <div class="space-y-6">
+                <!-- Area Card -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Land Area</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Hectares</p>
+                            <p id="area-ha" class="text-2xl font-bold text-green-700">--</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Acres</p>
+                            <p id="area-ac" class="text-2xl font-bold text-green-700">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carbon Credits Card -->
+                <div class="bg-gradient-to-br from-green-700 to-green-900 text-white rounded-lg shadow-md p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold opacity-90">Carbon Credits</h3>
+                            <p class="text-xs opacity-75">Estimated Annual Potential</p>
+                        </div>
+                        <span class="text-2xl">🌍</span>
+                    </div>
+
+                    <div class="mt-6 mb-2">
+                        <p class="text-sm opacity-75">Annual Value</p>
+                        <div id="carbon-value-container">
+                            <p id="carbon-value" class="text-4xl font-bold">₹0</p>
+                            <p id="carbon-pending-msg" class="text-[10px] mt-1 italic opacity-80 hidden">Calculated upon admin approval</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/10 rounded p-3 mt-4">
+                        <div class="flex justify-between items-center text-sm">
+                            <span>Credits Generated:</span>
+                            <span id="carbon-credits" class="font-bold">0.00</span>
+                        </div>
+                        <div class="text-xs opacity-75 mt-1 border-t border-white/20 pt-1">
+                            Market rate: ₹2,200/credit
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Info -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Farm Details</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex justify-between border-b pb-2">
+                            <span class="text-gray-500">Irrigation Method</span>
+                            <span id="farm-irrigation" class="font-medium">--</span>
+                        </li>
+                        <li class="flex justify-between border-b pb-2">
+                            <span class="text-gray-500">Location (Center)</span>
+                            <span id="farm-coords" class="font-medium text-xs">--</span>
+                        </li>
+                        <li class="flex justify-between pt-1">
+                            <span class="text-gray-500">Created On</span>
+                            <span id="farm-date" class="font-medium">--</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Document Verification Card -->
+                <div class="bg-white rounded-lg shadow-sm p-6 border-l-4" id="doc-card" style="border-color: #9ca3af;">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        📄 Land Document
+                    </h3>
+                    <!-- Verification Status Badge -->
+                    <div id="doc-status-badge" class="mb-4 px-3 py-2 rounded-lg text-sm font-medium text-center">
+                        ⏳ No document uploaded yet
+                    </div>
+                    <!-- Admin Comment (shown only for rejected) -->
+                    <div id="admin-comment-box" class="hidden mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p class="text-xs font-semibold text-red-700 mb-1">❌ Reason from Admin:</p>
+                        <p id="admin-comment-text" class="text-sm text-red-800"></p>
+                    </div>
+                    <!-- Existing Document Link -->
+                    <div id="doc-link-box" class="hidden mb-4">
+                        <a id="doc-link" href="#" target="_blank"
+                            class="text-blue-600 text-sm hover:underline flex items-center gap-1">
+                            📎 View Uploaded Document ↗
+                        </a>
+                    </div>
+                    <!-- Upload Form -->
+                    <form id="doc-upload-form" enctype="multipart/form-data">
+                        <label class="block text-xs text-gray-500 mb-2">Upload Land Document (PDF / JPG / PNG)</label>
+                        <input type="file" id="doc-file-input" accept=".pdf,.jpg,.jpeg,.png"
+                            class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition" />
+                        <button type="button" onclick="uploadDocument()" id="upload-btn"
+                            class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors">
+                            Upload for Verification
+                        </button>
+                    </form>
+                    <p id="upload-msg" class="hidden text-xs mt-2 text-center font-medium"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+    const farmId = "{{ farm_id }}";
+
+    document.addEventListener('DOMContentLoaded', loadFarmDetails);
+
+    async function loadFarmDetails() {
+        const loading = document.getElementById('loading');
+        const content = document.getElementById('farm-content');
+
+        try {
+            const response = await apiFetch(`/api/farms/${farmId}`);
+            if (!response.ok) throw new Error('Failed to load farm');
+
+            const farm = await response.json();
+            renderFarm(farm);
+
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+
+            // Initialize map after removing hidden class to ensure proper sizing
+            initMap(farm);
+
+        } catch (error) {
+            console.error(error);
+            loading.innerHTML = `<p class="text-red-500">Error loading farm details.</p>`;
+        }
+    }
+
+    function renderFarm(farm) {
+        // Text Fields
+        document.getElementById('breadcrumb-name').textContent = farm.name;
+        document.getElementById('farm-name').textContent = farm.name;
+        document.getElementById('farm-soil').textContent = `Soil: ${farm.soil_type || 'N/A'}`;
+        document.getElementById('farm-water').textContent = `Water: ${farm.water_source || 'N/A'}`;
+        document.getElementById('farm-irrigation').textContent = farm.irrigation_type || 'N/A';
+        document.getElementById('farm-date').textContent = new Date(farm.created_at).toLocaleDateString();
+
+        // Stats
+        document.getElementById('area-ha').textContent = farm.area_hectares ? farm.area_hectares : '0';
+        document.getElementById('area-ac').textContent = farm.area_acres ? farm.area_acres : '0';
+
+        // Carbon
+        if (farm.verification_status === 'approved' && farm.carbon_value_inr) {
+            document.getElementById('carbon-value').textContent = formatCurrency(farm.carbon_value_inr);
+            document.getElementById('carbon-credits').textContent = farm.carbon_credits_annual;
+            document.getElementById('carbon-pending-msg').classList.add('hidden');
+        } else {
+            document.getElementById('carbon-value').textContent = '₹0';
+            document.getElementById('carbon-credits').textContent = '0.00';
+            document.getElementById('carbon-pending-msg').classList.remove('hidden');
+        }
+
+        // Lock/Unlock AI Agronomy Plan Feature
+        const aiInputs = document.getElementById('ai-inputs');
+        const aiLockedMsg = document.getElementById('ai-locked-msg');
+        if (farm.verification_status === 'approved') {
+            aiInputs.classList.remove('hidden');
+            aiLockedMsg.classList.add('hidden');
+        } else {
+            aiInputs.classList.add('hidden');
+            aiLockedMsg.classList.remove('hidden');
+        }
+
+        // Document & Verification Status
+        const statusMap = {
+            pending: { label: '⏳ Pending Admin Verification', bg: 'bg-yellow-50', text: 'text-yellow-800', border: '#f59e0b' },
+            approved: { label: '✅ Document Approved', bg: 'bg-green-50', text: 'text-green-800', border: '#16a34a' },
+            rejected: { label: '❌ Document Rejected', bg: 'bg-red-50', text: 'text-red-800', border: '#dc2626' },
+        };
+
+        const statusKey = farm.verification_status || 'none';
+        const statusInfo = statusMap[statusKey];
+
+        const badge = document.getElementById('doc-status-badge');
+        const docCard = document.getElementById('doc-card');
+
+        if (statusInfo) {
+            badge.textContent = statusInfo.label;
+            badge.className = `mb-4 px-3 py-2 rounded-lg text-sm font-medium text-center ${statusInfo.bg} ${statusInfo.text}`;
+            docCard.style.borderColor = statusInfo.border;
+        } else {
+            badge.textContent = '⏳ No document uploaded yet';
+        }
+
+        if (farm.document_url) {
+            const linkBox = document.getElementById('doc-link-box');
+            linkBox.classList.remove('hidden');
+            document.getElementById('doc-link').href = farm.document_url;
+        }
+
+        if (farm.verification_status === 'rejected' && farm.verification_comments) {
+            const commentBox = document.getElementById('admin-comment-box');
+            commentBox.classList.remove('hidden');
+            document.getElementById('admin-comment-text').textContent = farm.verification_comments;
+        }
+    }
+
+    function initMap(farm) {
+        if (!farm.polygon_coordinates || farm.polygon_coordinates.length === 0) {
+            document.getElementById('map').innerHTML = '<div class="h-full flex items-center justify-center text-gray-500 bg-gray-100">No map boundary data available</div>';
+            document.getElementById('farm-coords').textContent = 'Not Mapped';
+            return;
+        }
+
+        // Convert coordinates format for Leaflet
+        const polygonCoords = farm.polygon_coordinates.map(c => [c.lat, c.lon]);
+
+        // Calculate center or use first point
+        const center = polygonCoords[0];
+        document.getElementById('farm-coords').textContent = `${center[0].toFixed(4)}, ${center[1].toFixed(4)}`;
+
+        const map = L.map('map').setView(center, 16);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        // Fetch and draw neighboring farms using global utility
+        fetchAndDrawAllFarms(map);
+
+        const polygon = L.polygon(polygonCoords, {
+            color: 'yellow',
+            weight: 3,
+            fillOpacity: 0.2
+        }).addTo(map);
+
+        // Fit bounds to show whole farm
+        map.fitBounds(polygon.getBounds());
+    }
+
+    async function getAIAdvice() {
+        const btn = document.getElementById('get-advice-btn');
+        const container = document.getElementById('ai-result-container');
+        const budget = document.getElementById('budget-input').value;
+        const season = document.getElementById('season-input').value;
+
+        if (!budget) {
+            alert("Please enter your investment budget.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner border-2 border-white border-t-transparent rounded-full h-4 w-4 inline-block mr-2 animate-spin"></span> Analyzing Graph Data...';
+        container.classList.add('hidden');
+
+        try {
+            const response = await apiFetch(`/api/farms/${farmId}/advise`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ budget: parseFloat(budget), season: season })
+            });
+
+            if (!response.ok) throw new Error("Failed to get AI advice");
+            const data = await response.json();
+
+            // Populate UI
+            document.getElementById('ai-crop-name').textContent = `${data.crop} (${data.variety})`;
+            document.getElementById('ai-crop-advice').textContent = data.advice;
+            document.getElementById('ai-crop-profit').textContent = `₹${data.expected_profit_min.toLocaleString()} - ₹${data.expected_profit_max.toLocaleString()}`;
+            document.getElementById('ai-crop-timeline').textContent = data.timeline;
+
+            const risksUl = document.getElementById('ai-crop-risks');
+            risksUl.innerHTML = '';
+            data.risk_factors.forEach(risk => {
+                const li = document.createElement('li');
+                li.textContent = risk;
+                risksUl.appendChild(li);
+            });
+
+            container.classList.remove('hidden');
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Generate Agronomy Plan';
+        }
+    }
+
+    async function uploadDocument() {
+        const fileInput = document.getElementById('doc-file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const uploadMsg = document.getElementById('upload-msg');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert('Please select a file to upload.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
+        uploadMsg.classList.add('hidden');
+
+        try {
+            const res = await apiFetch(`/api/farms/${farmId}/document`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Upload failed');
+            }
+
+            uploadMsg.textContent = '✅ Uploaded! Awaiting admin verification.';
+            uploadMsg.classList.remove('hidden');
+            uploadMsg.className = 'text-xs mt-2 text-center font-medium text-green-700';
+
+            // Reload farm details to reflect new status
+            setTimeout(() => loadFarmDetails(), 1500);
+        } catch (err) {
+            uploadMsg.textContent = '❌ ' + err.message;
+            uploadMsg.classList.remove('hidden');
+            uploadMsg.className = 'text-xs mt-2 text-center font-medium text-red-600';
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload for Verification';
+        }
+    }
+</script>
+{% endblock %}

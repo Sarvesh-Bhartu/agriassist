@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+
+{% block title %}Plant Scanner - Agricultural Assistant{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+    #map-container {
+        display: none;
+        margin-top: 1rem;
+    }
+
+    #map {
+        height: 250px;
+        width: 100%;
+        border-radius: 0.5rem;
+        z-index: 10;
+        cursor: crosshair;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">🌿 Plant Identification Scanner</h1>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+        <form id="plant-scan-form" enctype="multipart/form-data" class="space-y-6">
+            <!-- Image Upload -->
+            <div>
+                <label class="block text-lg font-medium mb-3">
+                    Upload Plant Photo
+                </label>
+                <div class="flex items-center space-x-3">
+                    <div class="flex-grow">
+                        <input type="file" id="plant-image" accept="image/*"
+                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer" />
+                    </div>
+                    <div class="flex-shrink-0">
+                        <input type="file" id="camera-image" accept="image/*" capture="environment" class="hidden" />
+                        <button type="button" onclick="document.getElementById('camera-image').click()"
+                            class="bg-green-100 text-green-700 p-3 rounded-full hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            title="Open Camera">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">Choose a file or click the camera icon to take a photo. Maximum
+                    10MB.</p>
+            </div>
+
+            <!-- Image Preview -->
+            <div id="image-preview" class="hidden">
+                <img id="preview-img" class="image-preview mx-auto" />
+            </div>
+
+            <!-- Location (auto-detected or map) -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Scan Location</label>
+                    <span id="location-status"
+                        class="text-sm px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-semibold">Detecting GPS...
+                        (Max 5s)</span>
+                </div>
+                <!-- Hidden inputs for form submission -->
+                <input type="hidden" id="latitude" name="latitude" value="" />
+                <input type="hidden" id="longitude" name="longitude" value="" />
+
+                <div id="map-container">
+                    <p class="text-sm text-gray-500 mb-3">📍 Please pinpoint exactly where you found this plant on the
+                        map:</p>
+                    <div id="map"></div>
+                    <p id="coord-display" class="text-xs text-gray-400 mt-2 text-center"></p>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="scan-btn"
+                class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 transition">
+                🔍 Identify Plant
+            </button>
+        </form>
+
+        <!-- Loading State -->
+        <div id="loading" class="hidden text-center py-8">
+            <div class="spinner mx-auto mb-4"></div>
+            <p class="text-gray-600 font-medium">Analyzing plant with AI...</p>
+            <p class="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden mt-6">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    requireAuth();
+
+    // Image preview logic
+    function handleFileSelection(file, inputElement) {
+        if (file) {
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('Image too large. Maximum 10MB allowed.', 'error');
+                inputElement.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('preview-img').src = e.target.result;
+                document.getElementById('image-preview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    document.getElementById('plant-image').addEventListener('change', function (e) {
+        document.getElementById('camera-image').value = ''; // clear other input
+        handleFileSelection(e.target.files[0], this);
+    });
+
+    document.getElementById('camera-image').addEventListener('change', function (e) {
+        document.getElementById('plant-image').value = ''; // clear other input
+        handleFileSelection(e.target.files[0], this);
+    });
+
+    // Form submission
+    document.getElementById('plant-scan-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        // Show loading
+        document.querySelector('form').classList.add('hidden');
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('results').classList.add('hidden');
+
+        // Prepare form data
+        const formData = new FormData(this);
+        const plantFile = document.getElementById('plant-image').files[0];
+        const cameraFile = document.getElementById('camera-image').files[0];
+
+        if (plantFile) {
+            formData.append('image', plantFile);
+        } else if (cameraFile) {
+            formData.append('image', cameraFile);
+        } else {
+            showToast('Please select or take an image.', 'error');
+            document.querySelector('form').classList.remove('hidden');
+            document.getElementById('loading').classList.add('hidden');
+            return;
+        }
+
+        // Remove empty coordinates so FastAPI doesn't crash trying to parse "" as a float
+        if (!formData.get('latitude')) formData.delete('latitude');
+        if (!formData.get('longitude')) formData.delete('longitude');
+
+        try {
+            const response = await apiFetch('/api/plants/identify', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Identification failed');
+            }
+
+            const data = await response.json();
+
+            // Hide loading
+            document.getElementById('loading').classList.add('hidden');
+
+            // Show results
+            displayResults(data);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+            document.querySelector('form').classList.remove('hidden');
+            document.getElementById('loading').classList.add('hidden');
+        }
+    });
+
+    function displayResults(data) {
+        const resultsDiv = document.getElementById('results');
+        const detection = data.detection;
+
+        const threatColors = {
+            'High': 'red',
+            'Medium': 'yellow',
+            'Low': 'green'
+        };
+        const color = threatColors[detection.threat_level] || 'gray';
+
+        resultsDiv.innerHTML = `
+        <div class="border-l-4 border-${color}-500 bg-${color}-50 p-6 rounded">
+            <h2 class="text-3xl font-bold mb-2 text-${color}-900">${detection.common_name || detection.species}</h2>
+            <p class="text-gray-600 italic mb-4">${detection.species}</p>
+            
+            <!-- YOLOv8 Annotated Image -->
+            ${detection.image_url ? `
+                <div class="mb-6 rounded overflow-hidden shadow-md">
+                    <img src="${detection.image_url}" alt="Analyzed Plant" class="w-full h-auto object-contain max-h-96 bg-gray-100" />
+                    <p class="text-xs text-center text-gray-500 p-2 bg-gray-50">AI Vision Analysis Complete</p>
+                </div>
+            ` : ''}
+            
+            ${detection.local_name ? `
+                <p class="text-lg mb-3">
+                    <span class="font-semibold">Local Name:</span> ${detection.local_name}
+                </p>
+            ` : ''}
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-white p-3 rounded">
+                    <span class="font-semibold">Confidence:</span>
+                    <span class="text-${color}-600 font-bold">${(detection.confidence * 100).toFixed(1)}%</span>
+                </div>
+                <div class="bg-white p-3 rounded">
+                    <span class="font-semibold">Threat Level:</span>
+                    <span class="px-3 py-1 rounded bg-${color}-200 text-${color}-800 font-semibold">
+                        ${detection.threat_level}
+                    </span>
+                </div>
+            </div>
+            
+            ${detection.is_invasive ? `
+                <div class="bg-white rounded-lg p-4 mb-4 border-2 border-red-300">
+                    <h3 class="font-bold text-red-600 text-xl mb-3">⚠️ Invasive Species Alert!</h3>
+                    <div class="prose text-gray-700">
+                        ${(detection.removal_method || 'Please carefully remove and destroy this invasive plant.').split('\n').map(line => `<p class="mb-2">${line}</p>`).join('')}
+                    </div>
+                    <a href="#" 
+                       onclick="markDestroyed('${data.detection_id}'); return false;"
+                       class="mt-4 inline-block bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-semibold">
+                        ✓ Mark as Destroyed (+25 bonus points)
+                    </a>
+                </div>
+            ` : `
+                <div class="bg-white rounded-lg p-4 mb-4">
+                    <h3 class="font-bold text-green-600 text-xl mb-2">Plant Care Tips:</h3>
+                    <p class="text-gray-700">${detection.removal_method || 'This appears to be a non-invasive plant.'}</p>
+                </div>
+            `}
+            
+            <div class="bg-green-100 rounded-lg p-4">
+                <p class="text-green-800 font-semibold text-lg">
+                    🎉 +${data.gamification.points_added} points earned!
+                </p>
+                <p class="text-green-700">
+                    Total Points: ${formatNumber(data.gamification.total_points)}
+                </p>
+                ${data.gamification.new_badges.length > 0 ? `
+                    <p class="text-green-700 mt-2 font-semibold">
+                        🏆 New Badge(s): ${data.gamification.new_badges.join(', ')}
+                    </p>
+                ` : ''}
+            </div>
+            
+            ${data.neighbors_alerted !== undefined ? `
+                <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p class="text-blue-800 font-semibold">
+                        📢 Alerts Broadcasted
+                    </p>
+                    <p class="text-blue-700 text-sm mt-1">
+                        Successfully simulated WhatsApp emergency alerts to <strong>${data.neighbors_alerted}</strong> registered farm(s) within a 5km radius!
+                    </p>
+                </div>
+            ` : ''}
+        </div>
+        
+        <div class="mt-6 flex space-x-4 justify-center">
+            <a href="/plants/scanner" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold">
+                Scan Another Plant
+            </a>
+            <a href="/plants/history" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 font-semibold">
+                View History
+            </a>
+        </div>
+    `;
+
+        resultsDiv.classList.remove('hidden');
+    }
+
+    async function markDestroyed(detectionId) {
+        if (!confirm('Have you removed this invasive plant? This will award you 25 bonus points.')) {
+            return;
+        }
+
+        try {
+            const response = await apiFetch(`/api/plants/${detectionId}/mark-destroyed`, {
+                method: 'POST'
+            });
+
+            if (!response.ok) throw new Error('Failed to mark as destroyed');
+
+            const data = await response.json();
+            showToast(`Plant marked as destroyed! +${data.bonus_points} points!`, 'success');
+
+            // Redirect to history
+            setTimeout(() => {
+                window.location.href = '/plants/history';
+            }, 2000);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    // Geolocation Fallback Logic
+    let map = null;
+    let marker = null;
+
+    async function fetchAndDrawFarms() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await fetch('/api/farms/all', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+
+            data.farms.forEach(farm => {
+                if (farm.polygon_coordinates && farm.polygon_coordinates.length > 0) {
+                    const latlngs = farm.polygon_coordinates.map(coord => [coord.lat, coord.lon]);
+                    // Green border for own, Blue border for neighbors
+                    const color = farm.is_own ? '#16a34a' : '#2563eb';
+                    const fillColor = farm.is_own ? '#dcfce7' : '#dbeafe';
+
+                    const polygon = L.polygon(latlngs, {
+                        color: color,
+                        fillColor: fillColor,
+                        fillOpacity: 0.4,
+                        weight: 2,
+                        interactive: false // Allows clicks to pass through to the map
+                    }).addTo(map);
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching farms:', error);
+        }
+    }
+
+    function initMap(lat = 20.5937, lng = 78.9629, zoom = 5) {
+        document.getElementById('map-container').style.display = 'block';
+        if (!map) {
+            map = L.map('map').setView([lat, lng], zoom);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri'
+            }).addTo(map);
+
+            map.on('click', function (e) {
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+                marker = L.marker(e.latlng).addTo(map);
+                document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
+                document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
+                const statusSpan = document.getElementById('location-status');
+                statusSpan.className = 'text-sm px-2 py-1 rounded bg-green-100 text-green-800 font-semibold';
+                statusSpan.innerText = '✅ Pinned on Map';
+                document.getElementById('coord-display').innerText = `Lat: ${e.latlng.lat.toFixed(6)}, Lng: ${e.latlng.lng.toFixed(6)}`;
+            });
+            setTimeout(() => map.invalidateSize(), 200);
+
+            // Fetch and draw local farms
+            fetchAndDrawFarms();
+        }
+    }
+
+    function requestLocationWithTimeout() {
+        const statusSpan = document.getElementById('location-status');
+
+        if (!navigator.geolocation) {
+            statusSpan.className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800 font-semibold';
+            statusSpan.innerText = 'Location Not Supported';
+            initMap();
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                document.getElementById('latitude').value = lat;
+                document.getElementById('longitude').value = lng;
+                statusSpan.className = 'text-sm px-2 py-1 rounded bg-green-100 text-green-800 font-semibold';
+                statusSpan.innerText = '✅ GPS Locked';
+
+                // Show map and place marker automatically
+                initMap(lat, lng, 16);
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+                marker = L.marker([lat, lng]).addTo(map);
+                document.getElementById('coord-display').innerText = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+            },
+            (error) => {
+                console.warn('Geolocation failed or timed out:', error.message);
+                statusSpan.className = 'text-sm px-2 py-1 rounded bg-blue-100 text-blue-800 font-semibold';
+                statusSpan.innerText = 'GPS Failed - Please Pin Map';
+                initMap();
+            },
+            options
+        );
+    }
+
+    // Attempt geolocation on load
+    document.addEventListener('DOMContentLoaded', requestLocationWithTimeout);
+
+</script>
+{% endblock %}

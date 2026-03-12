@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}My Farms - AgriAssist{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">My Farms</h1>
+        <a href="/farms/create" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+            + Add New Farm
+        </a>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="flex justify-center py-12">
+        <div class="spinner border-4 border-green-200 border-t-green-600 rounded-full h-12 w-12 animate-spin"></div>
+    </div>
+
+    <!-- Farms Grid -->
+    <div id="farms-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+        <!-- Filled by JS -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-12 bg-white rounded-lg shadow-sm">
+        <div class="text-6xl mb-4">🌾</div>
+        <h3 class="text-xl font-semibold text-gray-800 mb-2">No farms added yet</h3>
+        <p class="text-gray-500 mb-6">Add your first farm to start tracking soil health and carbon credits.</p>
+        <a href="/farms/create"
+            class="inline-block bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition">
+            Add Your First Farm
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', loadFarms);
+
+    async function loadFarms() {
+        const loading = document.getElementById('loading');
+        const grid = document.getElementById('farms-grid');
+        const empty = document.getElementById('empty-state');
+
+        try {
+            const response = await apiFetch('/api/farms/');
+            if (response.ok) {
+                const farms = await response.json();
+                loading.classList.add('hidden');
+
+                if (farms.length === 0) {
+                    empty.classList.remove('hidden');
+                } else {
+                    grid.innerHTML = farms.map(createFarmCard).join('');
+                    grid.classList.remove('hidden');
+                }
+            } else {
+                throw new Error('Failed to load farms');
+            }
+        } catch (error) {
+            console.error(error);
+            loading.innerHTML = `<p class="text-red-500">Error loading farms. <button onclick="location.reload()" class="underline">Retry</button></p>`;
+        }
+    }
+
+    function createFarmCard(farm) {
+        let statusBadge = '';
+        if (farm.verification_status === 'approved') {
+            statusBadge = '<span class="absolute top-3 right-3 bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-green-200 shadow-sm">✅ Approved</span>';
+        } else if (farm.verification_status === 'rejected') {
+            statusBadge = '<span class="absolute top-3 right-3 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-red-200 shadow-sm">❌ Rejected</span>';
+        } else {
+            statusBadge = '<span class="absolute top-3 right-3 bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-yellow-200 shadow-sm">⏳ Pending</span>';
+        }
+
+        let carbonDisplay = '';
+        if (farm.verification_status === 'approved') {
+            carbonDisplay = `<div class="flex justify-between items-center border-t pt-3 mt-3 border-gray-100">
+                                <span class="text-sm font-medium text-gray-500">Carbon Value:</span>
+                                <span class="font-bold text-green-700">${farm.carbon_value_inr ? formatCurrency(farm.carbon_value_inr) : '₹0'}</span>
+                             </div>`;
+        } else if (farm.verification_status === 'rejected') {
+            carbonDisplay = `<div class="p-3 bg-red-50 rounded-lg border border-red-100 mt-2">
+                                <div class="text-xs font-bold text-red-700 mb-1">Reason for Rejection:</div>
+                                <p class="text-[11px] text-red-600 leading-tight">${farm.verification_comments || "Please review your document"}</p>
+                            </div>
+                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 mt-2">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs font-medium text-gray-500">Carbon Value:</span>
+                                    <span class="font-bold text-gray-400">₹0</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 italic leading-tight">Calculated upon admin approval</p>
+                            </div>`;
+        } else {
+            carbonDisplay = `<div class="p-3 bg-gray-50 rounded-lg border border-gray-100 mt-2">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs font-medium text-gray-500">Carbon Value:</span>
+                                    <span class="font-bold text-gray-400">₹0</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 italic leading-tight">Calculated upon admin approval</p>
+                             </div>`;
+        }
+
+        return `
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition relative border border-transparent hover:border-green-100">
+                ${statusBadge}
+                <div class="h-24 bg-gradient-to-r from-green-50 to-green-100 flex items-center justify-center">
+                    <span class="text-4xl">🌱</span>
+                </div>
+                <div class="p-5">
+                    <h3 class="text-xl font-bold text-gray-800 mb-3 truncate">${farm.name}</h3>
+                    
+                    <div class="space-y-3 text-sm text-gray-600 mb-5">
+                        <div class="flex justify-between border-b pb-2 border-gray-50">
+                            <span class="text-gray-500">Area:</span>
+                            <span class="font-semibold">${farm.area_hectares ? farm.area_hectares + ' ha' : 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2 border-gray-50">
+                            <span class="text-gray-500">Soil Type:</span>
+                            <span class="font-semibold capitalize">${farm.soil_type || 'Unknown'}</span>
+                        </div>
+                        
+                        ${carbonDisplay}
+                    </div>
+
+                    <a href="/farms/${farm.id}" class="block w-full text-center border border-green-600 text-green-700 font-medium py-2 rounded-lg hover:bg-green-50 hover:shadow-sm transition-all">
+                        View Details
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+</script>
+{% endblock %}
