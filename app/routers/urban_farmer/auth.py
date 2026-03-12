@@ -122,7 +122,18 @@ async def login_urban_farmer(form_data: OAuth2PasswordRequestForm = Depends()):
             data={"sub": user_node["id"], "role": "urban_farmer"}, 
             expires_delta=datetime.timedelta(hours=24)
         )
-        return {"access_token": access_token, "token_type": "bearer", "role": "urban_farmer"}
+        
+        from fastapi.responses import JSONResponse
+        response = JSONResponse(content={"access_token": access_token, "token_type": "bearer", "role": "urban_farmer"})
+        response.set_cookie(
+            key="urban_access_token",
+            value=access_token,
+            httponly=True,
+            max_age=24 * 3600,
+            samesite="lax",
+            secure=False # Set to True in production with HTTPS
+        )
+        return response
     finally:
         session.close()
 

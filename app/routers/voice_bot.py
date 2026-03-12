@@ -6,6 +6,8 @@ from app.models.farm import Farm
 from app.models.crop import MarketPrice
 from app.services.graph_service import graph_service
 from app.services.gemini_service import gemini_service
+from app.services.weather_service import weather_service
+from app.services.market_service import market_service
 from app.core.security import get_current_user
 from sqlalchemy import func
 import urllib.parse
@@ -120,25 +122,33 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         response.append(gather)
         
     elif digit_pressed == '2':
-        # REAL Market Prices from Database (Swapped to option 2 per user feedback)
+        # REAL Market Prices from Database. Auto-refresh if stale.
         logger.info("Fetching market prices...")
-        # Try last 7 days first
-        seven_days_ago = datetime.utcnow().date() - timedelta(days=7)
-        prices = db.query(MarketPrice).filter(
-            MarketPrice.price_date >= seven_days_ago
-        ).order_by(MarketPrice.price_date.desc()).limit(5).all()
         
-        # Fallback: Just get the 5 most recent prices EVER if the 7-day filter is empty
-        if not prices:
-            logger.info("No prices in last 7 days, falling back to any available prices.")
-            prices = db.query(MarketPrice).order_by(MarketPrice.price_date.desc()).limit(5).all()
+        # 1. Fetch farmer context to get state
+        clean_phone = caller_phone.replace(' ', '')
+        if clean_phone.startswith('client:farmer_web_'):
+            actual_phone = clean_phone.replace('client:farmer_web_', '')
+            farmer = db.query(Farmer).filter(Farmer.phone == actual_phone).first()
+        else:
+            farmer = db.query(Farmer).filter(Farmer.phone == clean_phone).first()
+        
+        state = farmer.state if farmer and farmer.state else "Maharashtra"
+        
+        # 2. Trigger background update for fresh data
+        await market_service.update_market_db(db, state)
+        
+        # 3. Read back latest 5 prices
+        prices = db.query(MarketPrice).order_by(MarketPrice.price_date.desc()).limit(5).all()
         
         if not prices:
             price_text = "माफ़ कीजिये, अभी हमारे पास बाज़ार भाव की ताज़ा जानकारी उपलब्ध नहीं है।"
         else:
             price_text = "आज के बाज़ार भाव इस प्रकार हैं: "
             for p in prices:
+                # Assuming Indian quintal (100kg) for better context
                 quintal_price = float(p.price_per_kg) * 100
+                trend_emoji = "📈" if p.trend == 'rising' else ("📉" if p.trend == 'falling' else "➡️")
                 trend_text = "बढ़ रहा है" if p.trend == 'rising' else ("गिर रहा है" if p.trend == 'falling' else "स्थिर है")
                 price_text += f"{p.crop_name} {int(quintal_price)} रुपये प्रति क्विंटल, भाव {trend_text}। "
         
@@ -147,7 +157,7 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         response.redirect('/api/voice/webhook')
         
     elif digit_pressed == '3':
-        # AI-Powered REAL weather updates (Swapped to option 3)
+        # AI-Powered REAL weather updates (Integrated Open-Meteo)
         logger.info(f"Fetching weather for {caller_phone}...")
         clean_phone = caller_phone.replace(' ', '')
         if clean_phone.startswith('client:farmer_web_'):
@@ -156,14 +166,25 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         else:
             farmer = db.query(Farmer).filter(Farmer.phone == clean_phone).first()
 
-        location = f"{farmer.district}, {farmer.state}" if farmer and farmer.district else "उत्तर भारत"
+        location_name = f"{farmer.district}, {farmer.state}" if farmer and farmer.district else "उत्तर भारत"
+        
+        # Default fallback context
+        weather_data_str = "No real-time data available, provide a general seasonal update."
+        
+        if farmer and farmer.latitude and farmer.longitude:
+            logger.info(f"Using GPS coordinates for weather: {farmer.latitude}, {farmer.longitude}")
+            data = await weather_service.get_weather(float(farmer.latitude), float(farmer.longitude))
+            if data:
+                cond_str = weather_service.get_condition_string(data["condition_code"])
+                weather_data_str = f"Temperature: {data['temp']}C, Conditions: {cond_str}, Location: {location_name}"
         
         weather_context = f"""
-        Generate a realistic agricultural weather report for TODAY for {location}, India.
-        The report must be exactly 2 short sentences in Hindi.
-        Include temperature and sky conditions (e.g. clear sky, rain risk).
-        Keep it very simple and strictly in Hindi script.
-        No English characters. No markdown.
+        REAL-TIME WEATHER DATA: {weather_data_str}
+        
+        Generate a concise agricultural weather report for TODAY in Hindi.
+        Include temperature and sky conditions.
+        Keep it to exactly 2 short sentences.
+        Strictly Hindi script. No English. No markdown.
         """
         
         try:
@@ -177,7 +198,44 @@ async def handle_menu_selection(request: Request, db: Session = Depends(get_db))
         response.redirect('/api/voice/webhook')
         
     elif digit_pressed == '1':
-        response.say("यह सुविधा जल्द ही आ रही है।", language='hi-IN', voice='Polly.Aditi')
+        # AI Crop Guidance using SQLite + Neo4j Context
+        logger.info(f"Generating crop guidance for {caller_phone}...")
+        clean_phone = caller_phone.replace(' ', '')
+        if clean_phone.startswith('client:farmer_web_'):
+            actual_phone = clean_phone.replace('client:farmer_web_', '')
+            farmer = db.query(Farmer).filter(Farmer.phone == actual_phone).first()
+        else:
+            farmer = db.query(Farmer).filter(Farmer.phone == clean_phone).first()
+            
+        farm = db.query(Farm).filter(Farm.farmer_id == farmer.id).first() if farmer else None
+        
+        # Optional: Fetch neighbor trends from Neo4j
+        neighbor_crops = []
+        try:
+            trends = graph_service.get_local_trends(farmer.id) if farmer else {}
+            neighbor_crops = trends.get("popular_crops", [])
+        except:
+            pass
+            
+        context = f"""
+        FARMER CONTEXT:
+        - Location: {farmer.district if farmer else 'India'}, {farmer.state if farmer else ''}
+        - Soil Type: {farm.soil_type if farm else 'Unknown'}
+        - Neighboring Trends: {', '.join(neighbor_crops) if neighbor_crops else 'None'}
+        - Current Date: {datetime.now().strftime('%B %Y')}
+        
+        Provide high-level seasonal crop guidance in exactly 2 short Hindi sentences.
+        Recommend 1 or 2 crops to plant based on their soil and neighbors.
+        Strictly Hindi script. No English characters. No markdown.
+        """
+        
+        try:
+            guidance = await gemini_service.generate_text_response(context)
+            response.say(guidance, language='hi-IN', voice='Polly.Aditi')
+        except Exception as e:
+            logger.error(f"Guidance Error: {e}")
+            response.say("सलाह प्राप्त करने में समस्या आ रही है।", language='hi-IN', voice='Polly.Aditi')
+            
         response.redirect('/api/voice/webhook')
     else:
         response.say("गलत विकल्प।", language='hi-IN', voice='Polly.Aditi')

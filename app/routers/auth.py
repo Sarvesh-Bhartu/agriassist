@@ -82,7 +82,17 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
         expires_delta=timedelta(hours=24),
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=24 * 3600,
+        samesite="lax",
+        secure=False
+    )
+    return response
 
 
 @router.post("/login", response_model=Token)
@@ -115,7 +125,17 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         expires_delta=timedelta(hours=24),
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=24 * 3600,
+        samesite="lax",
+        secure=False
+    )
+    return response
 
 
 @router.get("/me", response_model=UserResponse)

@@ -182,5 +182,28 @@ class GraphService:
                  "average_neighbor_farm_size_hectares": 0
              }
 
+    def get_local_trends(self, farmer_id: str, radius_km: int = 10):
+        """Find what crops neighboring farmers are planting."""
+        query = """
+        MATCH (f:Farmer {id: $farmer_id})-[:OWNS]->(target:Farm)
+        MATCH (neighbor:Farmer)-[:OWNS]->(nFarm:Farm)
+        MATCH (neighbor)-[:SCANNED|:PLANTED]->(p:Plant)
+        WHERE f.id <> neighbor.id
+          AND target.location IS NOT NULL
+          AND nFarm.location IS NOT NULL
+          AND point.distance(target.location, nFarm.location) < $radius * 1000
+        RETURN p.species AS crop, count(*) AS count
+        ORDER BY count DESC LIMIT 3
+        """
+        try:
+            session = self.driver.get_session()
+            result = session.run(query, farmer_id=farmer_id, radius=radius_km)
+            crops = [record["crop"] for record in result]
+            session.close()
+            return {"popular_crops": crops}
+        except Exception as e:
+            logger.error(f"❌ Failed to get local trends: {e}")
+            return {"popular_crops": []}
+
 # Global instance
 graph_service = GraphService()

@@ -34,12 +34,22 @@ async def admin_login(credentials: AdminLogin, db: Session = Depends(get_db)):
 
     token = create_access_token(data={"sub": admin.id, "role": "admin"})
 
-    return AdminToken(
-        access_token=token,
-        token_type="bearer",
-        admin_id=admin.admin_id,
-        name=admin.name
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={
+        "access_token": token,
+        "token_type": "bearer",
+        "admin_id": admin.admin_id,
+        "name": admin.name
+    })
+    response.set_cookie(
+        key="admin_access_token",
+        value=token,
+        httponly=True,
+        max_age=24 * 3600,
+        samesite="lax",
+        secure=False
     )
+    return response
 
 
 # ─────────────────────────────────────────

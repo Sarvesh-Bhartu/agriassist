@@ -165,3 +165,112 @@ async def analyse_space(
         return {"error": f"Gemini returned invalid JSON: {e}", "raw": result_text}
     except Exception as e:
         return {"error": str(e)}
+
+
+def _build_plan_prompt(space_name: str, space_type: str, analysis: dict) -> str:
+    return f"""
+You are an expert urban garden designer. Create a detailed, step-by-step Planting Plan for this space.
+
+**Space Context:**
+- Name: {space_name}
+- Type: {space_type}
+- Area: {analysis.get('estimated_area_sqm')} m²
+- Sunlight: {analysis.get('sunlight_level')} ({analysis.get('sunlight_hours_per_day')} hrs/day)
+- Recommended Crops: {", ".join([c['name'] for c in analysis.get('recommended_crops', [])])}
+
+**Deliverables:**
+Return ONLY a raw JSON object (no markdown, no backticks) with this structure:
+
+{{
+  "name": "E.g. Monsoon Balcony Bounty",
+  "total_budget_est": 1200.0,
+  "expected_monthly_harvest_kg": 2.5,
+  "steps": [
+    {{
+      "crop_name": "Tomato",
+      "action": "Sow seeds",
+      "week": 1,
+      "description": "Plant 3 seeds in 15L container at 0.5 inch depth."
+    }}
+  ],
+  "budget_breakdown": [
+    {{
+      "item": "Potting Mix (20kg)",
+      "estimated_cost_inr": 450.0,
+      "category": "Soil/Media"
+    }}
+  ],
+  "layout_diagram_svg": "A string containing a simple horizontal SVG diagram showing the spatial arrangement of containers.",
+  "maintenance_tips": ["Water only in the early morning", "Prune lower leaves after 4 weeks"]
+}}
+
+Specific constraints:
+- Use Indian Rupee (INR) for costs.
+- The SVG should be roughly 600x200 pixels, using rectangles/circles to represent pots. Label them with text.
+- Ensure the steps cover at least 4 weeks of the initial setup and growth.
+"""
+
+
+async def generate_planting_plan(
+    space_name: str,
+    space_type: str,
+    analysis_result: dict
+) -> dict:
+    """
+    Generate a detailed planting plan using Gemini based on previous analysis.
+    """
+    prompt_text = _build_plan_prompt(space_name, space_type, analysis_result)
+    
+    try:
+        # We can pass the analysis_result as text to give Gemini context
+        response = _model.generate_content(prompt_text)
+        result_text = response.text.strip()
+
+        # Clean JSON
+        if result_text.startswith("```json"):
+            result_text = result_text[7:]
+        if result_text.startswith("```"):
+            result_text = result_text[3:]
+        if result_text.endswith("```"):
+            result_text = result_text[:-3]
+
+        return json.loads(result_text.strip())
+
+    except Exception as e:
+        return {"error": str(e)}
+
+async def chat_with_urban_ai(
+    user_message: str,
+    context_data: dict,
+    chat_history: list = None
+) -> str:
+    """
+    Personalized gardening chat that knows about the user's specific balcony and plans.
+    """
+    history = chat_history or []
+    
+    system_prompt = f"""
+    You are 'Urban AgriAssist AI', a friendly and expert assistant for balcony and terrace gardening in Indian cities.
+    
+    USER'S GARDEN CONTEXT:
+    - Spaces: {json.dumps(context_data.get('spaces', []))}
+    - Active Plans: {json.dumps(context_data.get('plans', []))}
+    
+    Your goal is to provide specific, actionable advice based on THEIR context. 
+    If they ask about watering, refer to their sunlight levels. 
+    If they ask about pests, refer to the crops they are currently growing.
+    
+    Keep responses concise (max 3-4 sentences), encouraging, and expert.
+    Use Hindi or English based on the user's tone. If they speak Hindi, respond in Hindi.
+    """
+    
+    chat = _model.start_chat(history=[
+        {"role": "user", "parts": [system_prompt]},
+        {"role": "model", "parts": ["Understood. I am now your specialized Urban AgriAssist AI. How can I help with your balcony garden today?"]}
+    ] + history)
+    
+    try:
+        response = chat.send_message(user_message)
+        return response.text
+    except Exception as e:
+        return f"I'm sorry, I'm having trouble connecting right now. Error: {str(e)}"

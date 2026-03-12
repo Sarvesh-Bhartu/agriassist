@@ -78,3 +78,43 @@ class SpaceAnalysisResult(BaseModel):
 
     class Config:
         from_attributes = True
+
+class PlantingStep(BaseModel):
+    crop_name: str
+    action: str  # e.g., "Sow seeds", "Transplant", "Add organic fertilizer"
+    week: int    # Week number from start
+    description: str
+
+class BudgetEntry(BaseModel):
+    item: str
+    estimated_cost_inr: float
+    category: str # e.g., "Seeds", "Soil/Media", "Containers", "Tools"
+
+class PlantingPlan(BaseModel):
+    plan_id: str
+    space_id: str
+    name: str = Field(..., description="e.g. Winter Balcony Garden")
+    total_budget_est: float
+    expected_monthly_harvest_kg: float
+    steps: List[PlantingStep]
+    budget_breakdown: List[BudgetEntry]
+    layout_diagram_svg: Optional[str] = None
+    maintenance_tips: List[str]
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    class Config:
+        from_attributes = True
+
+class GrowthLogCreate(BaseModel):
+    note: str = Field(..., description="Observations or notes about plant growth")
+    image_data: Optional[str] = Field(None, description="Base64 encoded image string for the update")
+
+class GrowthLogResponse(BaseModel):
+    id: str
+    plan_id: str
+    timestamp: datetime
+    note: str
+    image_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Planting Plan: {{ plan.name }} - AgriAssist{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-4xl bg-white shadow-xl rounded-2xl my-8 print:shadow-none print:my-0 print:py-0">
+    <div class="flex justify-between items-start border-b-2 border-green-100 pb-6 mb-8">
+        <div>
+            <h1 class="text-4xl font-extrabold text-green-900 mb-2">{{ plan.name }}</h1>
+            <p class="text-gray-500 font-medium">Urban Farmer Planting Plan Report</p>
+        </div>
+        <div class="text-right print:hidden">
+            <button onclick="window.print()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all flex items-center gap-2">
+                <span>🖨️</span> Save as PDF / Print
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div class="bg-green-50 rounded-2xl p-6 border border-green-100">
+            <p class="text-xs font-bold text-green-600 uppercase tracking-widest mb-1">Total Budget</p>
+            <p class="text-3xl font-black text-green-900">₹{{ plan.total_budget_est }}</p>
+        </div>
+        <div class="bg-blue-50 rounded-2xl p-6 border border-blue-100">
+            <p class="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">Est. Harvest</p>
+            <p class="text-3xl font-black text-blue-900">{{ plan.expected_monthly_harvest_kg }} <span class="text-lg">kg/mo</span></p>
+        </div>
+        <div class="bg-purple-50 rounded-2xl p-6 border border-purple-100">
+            <p class="text-xs font-bold text-purple-600 uppercase tracking-widest mb-1">Created On</p>
+            <p class="text-xl font-bold text-purple-900">{{ plan.created_at.strftime('%d %b %Y') }}</p>
+        </div>
+    </div>
+
+    <div class="mb-12">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <span class="p-2 bg-yellow-100 rounded-lg">📐</span> Spatial Layout Diagram
+        </h2>
+        <div class="bg-gray-50 rounded-3xl p-10 border border-gray-200 flex justify-center items-center overflow-hidden">
+            <div class="w-full max-w-3xl transform hover:scale-105 transition-transform duration-500">
+                {{ plan.layout_diagram_svg | safe }}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <span class="p-2 bg-green-100 rounded-lg">🗓️</span> Planting Timeline
+            </h2>
+            <div class="space-y-6">
+                {% for step in plan.steps | sort(attribute='week') %}
+                <div class="flex gap-6 group">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 rounded-2xl bg-green-600 text-white flex items-center justify-center font-black shadow-lg group-hover:rotate-12 transition-transform">
+                            W{{ step.week }}
+                        </div>
+                        <div class="w-1 flex-1 bg-green-100 my-2 rounded-full"></div>
+                    </div>
+                    <div class="pb-6">
+                        <p class="text-lg font-bold text-green-900 group-hover:text-green-600 transition-colors">{{ step.action }}</p>
+                        <p class="text-sm font-semibold text-green-700 mb-1">{{ step.crop_name }}</p>
+                        <p class="text-gray-600 text-sm leading-relaxed">{{ step.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <span class="p-2 bg-orange-100 rounded-lg">💰</span> Budget Breakdown
+            </h2>
+            <div class="bg-gray-50 rounded-3xl p-8 border border-gray-100">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                            <th class="pb-4">Item</th>
+                            <th class="pb-4 text-right">Cost (INR)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for item in plan.budget_breakdown %}
+                        <tr class="group">
+                            <td class="py-4">
+                                <p class="font-bold text-gray-800">{{ item.item }}</p>
+                                <p class="text-xs text-gray-500 uppercase">{{ item.category }}</p>
+                            </td>
+                            <td class="py-4 text-right font-black text-gray-900">₹{{ item.estimated_cost_inr }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="border-t-2 border-gray-200">
+                            <td class="pt-6 font-black text-lg text-gray-900 uppercase">Total</td>
+                            <td class="pt-6 text-right font-black text-2xl text-green-600">₹{{ plan.total_budget_est }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="mt-8 bg-amber-50 rounded-2xl p-6 border border-amber-100">
+                <h3 class="font-bold text-amber-900 mb-3 flex items-center gap-2">
+                    <span>💡</span> Maintenance Tips
+                </h3>
+                <ul class="space-y-2">
+                    {% for tip in plan.maintenance_tips %}
+                    <li class="text-sm text-amber-800 flex gap-2">
+                        <span class="text-amber-400">•</span> {{ tip }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="border-t pt-12 text-center">
+        <p class="text-sm text-gray-400 italic">Generated by AgriAssist AI Urban Advisor. Happy Farming!</p>
+    </div>
+</div>
+
+<style>
+@media print {
+    body { background: white; }
+    .container { box-shadow: none; margin: 0; width: 100%; max-width: none; }
+    button { display: none; }
+    .bg-green-50 { background-color: #f0fdf4 !important; }
+    .bg-blue-50 { background-color: #eff6ff !important; }
+    .bg-purple-50 { background-color: #faf5ff !important; }
+    .bg-gray-50 { background-color: #f9fafb !important; }
+}
+</style>
+{% endblock %}

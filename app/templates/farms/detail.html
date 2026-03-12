@@ -27,6 +27,7 @@
 
     <div id="loading" class="flex justify-center py-12">
         <div class="spinner border-4 border-green-200 border-t-green-600 rounded-full h-12 w-12 animate-spin"></div>
+        <span class="ml-3 text-gray-600">Loading...</span>
     </div>
 
     <div id="farm-content" class="hidden">
@@ -46,7 +47,7 @@
                 <!-- Map -->
                 <div class="bg-white rounded-lg shadow-sm p-2">
                     <div id="map"></div>
-                    <p class="text-xs text-gray-400 mt-2 text-center">Satellite view of your farm boundary</p>
+                    <p class="text-xs text-gray-400 mt-2 text-center">Interactive farm boundary captured via GPS/Map</p>
                 </div>
 
                 <!-- AI Crop Advisor -->
@@ -54,19 +55,18 @@
                     <h2 class="text-xl font-bold flex items-center text-gray-800 mb-4">
                         <span class="mr-2">✨</span> AI Crop Advisor
                     </h2>
-                    <p class="text-sm text-gray-600 mb-4">Get hyper-personalized crop recommendations based on your soil
-                        type and local agronomy trends in your area.</p>
+                    <p class="text-sm text-gray-600 mb-4">Get personalized crop recommendations based on your soil and local trends.</p>
 
                     <div id="ai-inputs">
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Budget (INR)</label>
+                                <label class="block text-sm font-medium text-gray-700">Investment Budget (INR)</label>
                                 <input type="number" id="budget-input"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
                                     placeholder="e.g. 50000" required>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Season</label>
+                                <label class="block text-sm font-medium text-gray-700">Which season are you planning for?</label>
                                 <select id="season-input"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
                                     <option value="Kharif (Monsoon)">Kharif (Monsoon)</option>
@@ -79,15 +79,14 @@
                         <button id="get-advice-btn"
                             class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
                             onclick="getAIAdvice()">
-                            Generate Agronomy Plan
+                            Generate AI Agronomy Plan
                         </button>
                     </div>
 
                     <!-- Locked UI Message -->
                     <div id="ai-locked-msg" class="hidden p-4 rounded-lg bg-gray-50 border border-gray-200 text-center">
                         <span class="text-2xl mb-2 block">🔒</span>
-                        <p class="text-sm font-medium text-gray-700">This feature will unlock once your farm is approved.</p>
-                        <p class="text-xs text-gray-500 mt-1">Upload your land document for admin verification to access AI Agronomy Plans.</p>
+                        <p class="text-sm font-medium text-gray-700">AI Advice is locked. Please verify your land document first.</p>
                     </div>
 
                     <!-- Result Container -->
@@ -98,17 +97,17 @@
 
                             <div class="grid grid-cols-2 gap-2 text-sm mb-4">
                                 <div class="bg-white p-2 rounded shadow-sm">
-                                    <span class="block text-gray-500 text-xs">Expected Return</span>
+                                    <span class="block text-gray-500 text-xs">Estimated Profit</span>
                                     <span class="font-bold" id="ai-crop-profit"></span>
                                 </div>
                                 <div class="bg-white p-2 rounded shadow-sm">
-                                    <span class="block text-gray-500 text-xs">Timeline</span>
+                                    <span class="block text-gray-500 text-xs">Harvest Timeline</span>
                                     <span class="font-bold" id="ai-crop-timeline"></span>
                                 </div>
                             </div>
 
                             <div class="text-sm">
-                                <strong class="text-red-600">⚠️ Risk Factors:</strong>
+                                <strong class="text-red-600">⚠️ Potential Risks:</strong>
                                 <ul id="ai-crop-risks" class="list-disc pl-5 mt-1 text-gray-700"></ul>
                             </div>
                         </div>
@@ -120,7 +119,7 @@
             <div class="space-y-6">
                 <!-- Area Card -->
                 <div class="bg-white rounded-lg shadow-sm p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Land Area</h3>
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Total Area</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <p class="text-sm text-gray-500">Hectares</p>
@@ -137,41 +136,41 @@
                 <div class="bg-gradient-to-br from-green-700 to-green-900 text-white rounded-lg shadow-md p-6">
                     <div class="flex items-start justify-between">
                         <div>
-                            <h3 class="text-lg font-semibold opacity-90">Carbon Credits</h3>
-                            <p class="text-xs opacity-75">Estimated Annual Potential</p>
+                            <h3 class="text-lg font-semibold opacity-90">Carbon Credit Portfolio</h3>
+                            <p class="text-xs opacity-75">Verified sequestration potential</p>
                         </div>
                         <span class="text-2xl">🌍</span>
                     </div>
 
                     <div class="mt-6 mb-2">
-                        <p class="text-sm opacity-75">Annual Value</p>
+                        <p class="text-sm opacity-75">Estimated Annual Value</p>
                         <div id="carbon-value-container">
                             <p id="carbon-value" class="text-4xl font-bold">₹0</p>
-                            <p id="carbon-pending-msg" class="text-[10px] mt-1 italic opacity-80 hidden">Calculated upon admin approval</p>
+                            <p id="carbon-pending-msg" class="text-[10px] mt-1 italic opacity-80 hidden">Pending document verification</p>
                         </div>
                     </div>
 
                     <div class="bg-white/10 rounded p-3 mt-4">
                         <div class="flex justify-between items-center text-sm">
-                            <span>Credits Generated:</span>
+                            <span>Carbon Credits (MT):</span>
                             <span id="carbon-credits" class="font-bold">0.00</span>
                         </div>
                         <div class="text-xs opacity-75 mt-1 border-t border-white/20 pt-1">
-                            Market rate: ₹2,200/credit
+                            Current Market Rate: ₹1,200 / Credit
                         </div>
                     </div>
                 </div>
 
                 <!-- Additional Info -->
                 <div class="bg-white rounded-lg shadow-sm p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Farm Details</h3>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Farm Statistics</h3>
                     <ul class="space-y-3 text-sm">
                         <li class="flex justify-between border-b pb-2">
-                            <span class="text-gray-500">Irrigation Method</span>
+                            <span class="text-gray-500">Irrigation Type</span>
                             <span id="farm-irrigation" class="font-medium">--</span>
                         </li>
                         <li class="flex justify-between border-b pb-2">
-                            <span class="text-gray-500">Location (Center)</span>
+                            <span class="text-gray-500">Location</span>
                             <span id="farm-coords" class="font-medium text-xs">--</span>
                         </li>
                         <li class="flex justify-between pt-1">
@@ -184,32 +183,32 @@
                 <!-- Document Verification Card -->
                 <div class="bg-white rounded-lg shadow-sm p-6 border-l-4" id="doc-card" style="border-color: #9ca3af;">
                     <h3 class="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        📄 Land Document
+                        📄 Land Documents
                     </h3>
                     <!-- Verification Status Badge -->
                     <div id="doc-status-badge" class="mb-4 px-3 py-2 rounded-lg text-sm font-medium text-center">
-                        ⏳ No document uploaded yet
+                        ⏳ No document uploaded
                     </div>
                     <!-- Admin Comment (shown only for rejected) -->
                     <div id="admin-comment-box" class="hidden mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p class="text-xs font-semibold text-red-700 mb-1">❌ Reason from Admin:</p>
+                        <p class="text-xs font-semibold text-red-700 mb-1">❌ Verification Rejected:</p>
                         <p id="admin-comment-text" class="text-sm text-red-800"></p>
                     </div>
                     <!-- Existing Document Link -->
                     <div id="doc-link-box" class="hidden mb-4">
                         <a id="doc-link" href="#" target="_blank"
                             class="text-blue-600 text-sm hover:underline flex items-center gap-1">
-                            📎 View Uploaded Document ↗
+                            📎 View Document ↗
                         </a>
                     </div>
                     <!-- Upload Form -->
                     <form id="doc-upload-form" enctype="multipart/form-data">
-                        <label class="block text-xs text-gray-500 mb-2">Upload Land Document (PDF / JPG / PNG)</label>
+                        <label class="block text-xs text-gray-500 mb-2">Upload Proof of Ownership (pdf/img)</label>
                         <input type="file" id="doc-file-input" accept=".pdf,.jpg,.jpeg,.png"
                             class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition" />
                         <button type="button" onclick="uploadDocument()" id="upload-btn"
                             class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors">
-                            Upload for Verification
+                            Upload Land Document
                         </button>
                     </form>
                     <p id="upload-msg" class="hidden text-xs mt-2 text-center font-medium"></p>
@@ -257,8 +256,8 @@
         // Text Fields
         document.getElementById('breadcrumb-name').textContent = farm.name;
         document.getElementById('farm-name').textContent = farm.name;
-        document.getElementById('farm-soil').textContent = `Soil: ${farm.soil_type || 'N/A'}`;
-        document.getElementById('farm-water').textContent = `Water: ${farm.water_source || 'N/A'}`;
+        document.getElementById('farm-soil').textContent = `Soil Type: ${farm.soil_type || 'N/A'}`;
+        document.getElementById('farm-water').textContent = `Irrigation: ${farm.water_source || 'N/A'}`;
         document.getElementById('farm-irrigation').textContent = farm.irrigation_type || 'N/A';
         document.getElementById('farm-date').textContent = new Date(farm.created_at).toLocaleDateString();
 
@@ -290,9 +289,9 @@
 
         // Document & Verification Status
         const statusMap = {
-            pending: { label: '⏳ Pending Admin Verification', bg: 'bg-yellow-50', text: 'text-yellow-800', border: '#f59e0b' },
-            approved: { label: '✅ Document Approved', bg: 'bg-green-50', text: 'text-green-800', border: '#16a34a' },
-            rejected: { label: '❌ Document Rejected', bg: 'bg-red-50', text: 'text-red-800', border: '#dc2626' },
+            pending: { label: `⏳ Document Pending`, bg: 'bg-yellow-50', text: 'text-yellow-800', border: '#f59e0b' },
+            approved: { label: `✅ Verified & Approved`, bg: 'bg-green-50', text: 'text-green-800', border: '#16a34a' },
+            rejected: { label: `❌ Verification Rejected`, bg: 'bg-red-50', text: 'text-red-800', border: '#dc2626' },
         };
 
         const statusKey = farm.verification_status || 'none';
@@ -306,7 +305,7 @@
             badge.className = `mb-4 px-3 py-2 rounded-lg text-sm font-medium text-center ${statusInfo.bg} ${statusInfo.text}`;
             docCard.style.borderColor = statusInfo.border;
         } else {
-            badge.textContent = '⏳ No document uploaded yet';
+            badge.textContent = `⏳ No document uploaded`;
         }
 
         if (farm.document_url) {
@@ -367,7 +366,7 @@
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner border-2 border-white border-t-transparent rounded-full h-4 w-4 inline-block mr-2 animate-spin"></span> Analyzing Graph Data...';
+        btn.innerHTML = `<span class="spinner border-2 border-white border-t-transparent rounded-full h-4 w-4 inline-block mr-2 animate-spin"></span> Loading...`;
         container.classList.add('hidden');
 
         try {
@@ -401,7 +400,7 @@
             alert(error.message);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = 'Generate Agronomy Plan';
+            btn.innerHTML = 'Generate AI Agronomy Plan';
         }
     }
 
@@ -433,7 +432,7 @@
                 throw new Error(err.detail || 'Upload failed');
             }
 
-            uploadMsg.textContent = '✅ Uploaded! Awaiting admin verification.';
+            uploadMsg.textContent = `✅ Document Pending Verification`;
             uploadMsg.classList.remove('hidden');
             uploadMsg.className = 'text-xs mt-2 text-center font-medium text-green-700';
 
@@ -445,7 +444,7 @@
             uploadMsg.className = 'text-xs mt-2 text-center font-medium text-red-600';
         } finally {
             uploadBtn.disabled = false;
-            uploadBtn.textContent = 'Upload for Verification';
+            uploadBtn.textContent = 'Upload Land Document';
         }
     }
 </script>
