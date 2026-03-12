@@ -64,6 +64,7 @@ async def admin_dashboard(
             area_hectares=farm.area_hectares,
             area_acres=farm.area_acres,
             carbon_credits_annual=farm.carbon_credits_annual,
+            polygon_coordinates=farm.polygon_coordinates,
             document_url=farm.document_url,
             verification_status=farm.verification_status or "pending",
             verification_comments=farm.verification_comments,

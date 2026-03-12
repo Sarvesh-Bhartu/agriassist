@@ -1,70 +1,150 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Agricultural Assistant{% endblock %}
+{% block title %}Login - AgriAssist{% endblock %}
+
+{% block extra_css %}
+<style>
+    .role-btn { transition: all 0.2s; }
+    .role-btn.active { background: #166534; color: #fff; box-shadow: 0 2px 8px rgba(22,101,52,0.25); }
+    .role-btn:not(.active) { background: #f0fdf4; color: #166534; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-12">
-    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
-        <h1 class="text-3xl font-bold mb-6 text-center">Login</h1>
+<div class="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center py-12 px-4">
+    <div class="max-w-md w-full">
+        <div class="text-center mb-8">
+            <div class="text-5xl mb-3">🌾</div>
+            <h1 class="text-3xl font-extrabold text-gray-900">Welcome Back</h1>
+            <p class="text-gray-500 mt-1">Sign in to continue to AgriAssist</p>
+        </div>
 
-        <form id="login-form" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium mb-2">Phone Number</label>
-                <input type="tel" id="phone" placeholder="9876543210"
-                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" required />
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <!-- 3-way Role Toggle -->
+            <div class="flex rounded-xl overflow-hidden border border-green-200 mb-8">
+                <button type="button" onclick="setRole('farmer')" id="btn-farmer"
+                    class="role-btn active flex-1 py-3 text-sm font-bold rounded-l-xl">
+                    🌱 Farmer
+                </button>
+                <button type="button" onclick="setRole('urban')" id="btn-urban"
+                    class="role-btn flex-1 py-3 text-sm font-bold border-l border-r border-green-200">
+                    🏙️ Urban Farmer
+                </button>
+                <button type="button" onclick="setRole('admin')" id="btn-admin"
+                    class="role-btn flex-1 py-3 text-sm font-bold rounded-r-xl">
+                    🛡️ Admin
+                </button>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium mb-2">Password</label>
-                <input type="password" id="password"
-                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" required />
-            </div>
+            <p id="admin-note" class="hidden text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+                ⚠️ Admin login uses your Admin ID and password, not phone.
+            </p>
 
-            <button type="submit"
-                class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700">
-                Login
-            </button>
-        </form>
+            <form id="login-form" class="space-y-5" onsubmit="handleLogin(event)">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" id="phone-label">Phone Number</label>
+                    <input type="text" id="phone" required placeholder="9876543210"
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <input type="password" id="password" required placeholder="••••••••"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all pr-12">
+                        <button type="button" onclick="document.getElementById('password').type = document.getElementById('password').type === 'password' ? 'text' : 'password'"
+                            class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 text-sm">👁️</button>
+                    </div>
+                </div>
 
-        <p class="mt-6 text-center text-gray-600">
-            Don't have an account?
-            <a href="/register" class="text-green-600 font-medium hover:underline">Register here</a>
-        </p>
+                <button type="submit" id="submit-btn"
+                    class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-xl shadow-lg transition-all text-lg">
+                    Login as Farmer
+                </button>
+                <p id="error-msg" class="text-red-500 text-center text-sm hidden"></p>
+            </form>
+
+            <p class="mt-6 text-center text-gray-500 text-sm">
+                Don't have an account?
+                <a href="/register" class="text-green-700 font-bold hover:underline">Register here</a>
+            </p>
+        </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
+    let currentRole = 'farmer';
 
+    const roleConfig = {
+        farmer: { label: 'Phone Number', placeholder: '9876543210', btnText: 'Login as Farmer',       api: '/api/auth/login',   isFormData: false, dashboard: '/dashboard' },
+        urban:  { label: 'Phone Number', placeholder: '9876543210', btnText: 'Login as Urban Farmer', api: '/urban/auth/login', isFormData: true,  dashboard: '/urban/space/dashboard' },
+        admin:  { label: 'Admin ID',     placeholder: 'T12478',     btnText: 'Login as Admin',        api: '/api/admin/login',  isFormData: false, dashboard: '/admin/dashboard' }
+    };
+
+    function setRole(role) {
+        currentRole = role;
+        const cfg = roleConfig[role];
+        ['farmer', 'urban', 'admin'].forEach(r => {
+            document.getElementById('btn-' + r).classList.toggle('active', r === role);
+        });
+        document.getElementById('phone-label').textContent = cfg.label;
+        document.getElementById('phone').placeholder = cfg.placeholder;
+        document.getElementById('submit-btn').textContent = cfg.btnText;
+        const note = document.getElementById('admin-note');
+        note.classList.toggle('hidden', role !== 'admin');
+        document.getElementById('error-msg').classList.add('hidden');
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submit-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const cfg = roleConfig[currentRole];
         const phone = document.getElementById('phone').value;
         const password = document.getElementById('password').value;
 
+        btn.disabled = true;
+        btn.textContent = 'Signing in...';
+        errorMsg.classList.add('hidden');
+
         try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ phone, password })
-            });
+            let response;
+            if (cfg.isFormData) {
+                const fd = new FormData();
+                fd.append('username', phone);
+                fd.append('password', password);
+                response = await fetch(cfg.api, { method: 'POST', body: fd });
+            } else {
+                response = await fetch(cfg.api, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, password })
+                });
+            }
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Login failed');
+                const err = await response.json();
+                throw new Error(err.detail || 'Login failed');
             }
 
             const data = await response.json();
             localStorage.setItem('token', data.access_token);
+            localStorage.setItem('role', currentRole === 'urban' ? 'urban_farmer' : currentRole);
 
-            showToast('Login successful!', 'success');
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 1000);
+            if (window.showToast) window.showToast('Login successful!', 'success');
+            setTimeout(function() { window.location.href = cfg.dashboard; }, 800);
 
-        } catch (error) {
-            showToast(error.message, 'error');
+        } catch (err) {
+            errorMsg.textContent = err.message;
+            errorMsg.classList.remove('hidden');
+            btn.disabled = false;
+            btn.textContent = cfg.btnText;
         }
-    });
+    }
+
+    // Auto-select tab from URL hash e.g. /login#urban or /login#admin
+    const hash = window.location.hash.replace('#', '');
+    if (hash === 'urban' || hash === 'admin') setRole(hash);
 </script>
 {% endblock %}

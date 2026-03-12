@@ -107,7 +107,10 @@
 
             if (token) {
                 // User is logged in
-                fetch('/api/auth/me', {
+                const role = localStorage.getItem('role');
+                const meEndpoint = (role === 'urban_farmer') ? '/urban/auth/me' : '/api/auth/me';
+
+                fetch(meEndpoint, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -117,11 +120,15 @@
                         return res.json();
                     })
                     .then(user => {
+                        const isUrban = role === 'urban_farmer';
+                        const pointsDisplay = isUrban ? '' : `<span class="bg-green-500 px-2 py-1 rounded text-sm whitespace-nowrap">${user.total_points} pts</span>`;
+                        const iconDisplay = (!isUrban && user.level) ? user.level.current_icon + ' ' : (isUrban ? '🏙️ ' : '');
+                        
                         // Desktop Auth UI
                         authSection.innerHTML = `
                         <div class="flex items-center space-x-3">
-                            <span class="font-medium truncate max-w-[120px] lg:max-w-none" title="${user.level ? user.level.current_level : ''}">${user.level ? user.level.current_icon + ' ' : ''}${user.name}</span>
-                            <span class="bg-green-500 px-2 py-1 rounded text-sm whitespace-nowrap">${user.total_points} pts</span>
+                            <span class="font-medium truncate max-w-[120px] lg:max-w-none" title="${!isUrban && user.level ? user.level.current_level : ''}">${iconDisplay}${user.name}</span>
+                            ${pointsDisplay}
                             <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded whitespace-nowrap">Logout</button>
                         </div>
                         `;
@@ -129,8 +136,8 @@
                         // Mobile Auth UI
                         mobileAuthSection.innerHTML = `
                         <div class="flex items-center justify-between px-3">
-                            <span class="font-medium" title="${user.level ? user.level.current_level : ''}">${user.level ? user.level.current_icon + ' ' : ''}${user.name}</span>
-                            <span class="bg-green-500 px-2 py-1 rounded text-sm">${user.total_points} pts</span>
+                            <span class="font-medium" title="${!isUrban && user.level ? user.level.current_level : ''}">${iconDisplay}${user.name}</span>
+                            ${isUrban ? '' : `<span class="bg-green-500 px-2 py-1 rounded text-sm">${user.total_points} pts</span>`}
                         </div>
                         <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 mx-3 rounded text-center">Logout</button>
                         `;
@@ -138,6 +145,18 @@
                         // Show navigation links on desktop, while keeping them hidden on mobile
                         navLinks.classList.add('md:flex');
                         mobileNavLinks.classList.remove('hidden');
+                        
+                        // If urban, add dashboard link if not present
+                        if (isUrban) {
+                            const urbanDashLink = document.createElement('a');
+                            urbanDashLink.href = '/urban/space/dashboard';
+                            urbanDashLink.className = 'hover:bg-green-600 px-3 py-2 rounded';
+                            urbanDashLink.textContent = 'Urban Dashboard';
+                            // Avoid duplicates
+                            if (!Array.from(navLinks.children).some(el => el.textContent === 'Urban Dashboard')) {
+                                navLinks.prepend(urbanDashLink);
+                            }
+                        }
                     })
                     .catch(() => {
                         // Token invalid, clear it

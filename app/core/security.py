@@ -78,10 +78,19 @@ async def get_current_user(
     payload = decode_token(token)
     
     user_id: str = payload.get("sub")
+    role: str = payload.get("role", "")
+    
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials"
+        )
+        
+    # Strictly block urban farmers from accessing rural farmer routes
+    if role == "urban_farmer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Urban Farmers cannot access Rural dashboards"
         )
     
     user = db.query(Farmer).filter(Farmer.id == user_id).first()
@@ -135,3 +144,59 @@ async def get_current_admin(
         )
 
     return admin
+
+
+async def get_current_urban_farmer(
+    request: Request,
+    security_scopes: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get current authenticated Urban Farmer from JWT token"""
+    from app.core.neo4j_driver import neo4j_driver
+    
+    token = request.cookies.get("urban_access_token")
+    
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Urban Farmer not authenticated"
+        )
+        
+    payload = decode_token(token)
+    
+    user_id: str = payload.get("sub")
+    role: str = payload.get("role", "")
+    
+    if user_id is None or role != "urban_farmer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Not an Urban Farmer"
+        )
+    
+    # Verify the user actually exists in Neo4j
+    session = neo4j_driver.get_session()
+    try:
+        result = session.run("MATCH (u:UrbanFarmer {id: $id}) RETURN u", id=user_id)
+        record = result.single()
+        if not record:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Urban Farmer account not found"
+            )
+        # Using dict instead of Pydantic model for internal dependency usage
+        # to remain flexible with Neo4j driver records
+        user_node = record["u"]
+        return {
+            "id": user_node["id"],
+            "name": user_node["name"],
+            "phone": user_node["phone"],
+            "city": user_node["city"],
+            "ward": user_node["ward"],
+            "housing_society": user_node.get("housing_society", "N/A")
+        }
+    finally:
+        session.close()

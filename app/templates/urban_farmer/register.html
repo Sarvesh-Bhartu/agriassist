@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Urban Farmer Registration{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-2xl">
+    <div class="bg-white rounded-xl shadow-xl p-8 border border-gray-100">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">🏙️ Join Urban AgriAssist</h1>
+        <p class="text-gray-600 mb-8 text-center text-sm">Register to start optimizing your balcony and earning carbon credits.</p>
+
+        <form id="register-form" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Full Name</label>
+                    <input type="text" name="name" required placeholder="John Doe" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                    <input type="text" name="phone" required placeholder="9876543210" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Email (Optional)</label>
+                    <input type="email" name="email" placeholder="john@example.com" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" name="password" required minlength="6" placeholder="******" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+            </div>
+
+            <hr class="border-gray-100 my-4">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">City</label>
+                    <input type="text" name="city" required placeholder="Mumbai" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Ward / Area</label>
+                    <input type="text" name="ward" required placeholder="Ward K/West" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Housing Society</label>
+                    <input type="text" name="housing_society" required placeholder="Skyline Towers" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Floor Number</label>
+                    <input type="number" name="floor_number" required placeholder="12" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+            </div>
+
+            <hr class="border-gray-100 my-4">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">UPI ID (for rewards)</label>
+                    <input type="text" name="upi_id" required placeholder="user@upi" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Aadhaar (12 digits)</label>
+                    <input type="text" name="aadhaar_number" required minlength="12" maxlength="12" placeholder="123412341234" 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" id="submit-btn" 
+                        class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-lg shadow-lg transition-all">
+                    Register as Urban Farmer
+                </button>
+            </div>
+            
+            <p id="error-msg" class="text-red-500 text-center text-sm hidden"></p>
+            <p class="text-center text-sm text-gray-500">
+                Already have an account? <a href="/urban/auth/login" class="text-green-700 font-bold hover:underline">Login here</a>
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submit-btn');
+        const errorMsg = document.getElementById('error-msg');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Registering...";
+        errorMsg.classList.add('hidden');
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        data.floor_number = parseInt(data.floor_number);
+
+        try {
+            const response = await fetch('/urban/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                alert('Registration successful! Redirecting to login...');
+                window.location.href = '/urban/auth/login';
+            } else {
+                const err = await response.json();
+                throw new Error(err.detail || 'Registration failed');
+            }
+        } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Register as Urban Farmer";
+        }
+    });
+</script>
+{% endblock %}

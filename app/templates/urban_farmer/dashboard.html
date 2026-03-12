@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Urban Farmer Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">🏙️ Urban Farmer Dashboard</h1>
+        <a href="/urban/space/submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all">
+            + Onboard New Space
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
+            <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold">Active Spaces</p>
+            <p class="text-3xl font-bold" id="total-spaces">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-yellow-500">
+            <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold">Pending Analysis</p>
+            <p class="text-3xl font-bold" id="pending-analysis">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
+            <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold">Est. Carbon Credits</p>
+            <p class="text-3xl font-bold">0.0</p>
+        </div>
+    </div>
+
+    <h2 class="text-2xl font-bold mb-4">Your Balconies & Terraces</h2>
+    <div id="spaces-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Will be populated by JS -->
+        <div class="col-span-full py-12 text-center text-gray-500 italic bg-gray-50 rounded-lg">
+            No spaces found. Click "+ Onboard New Space" to start!
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function loadSpaces() {
+        const token = localStorage.getItem('token');
+        if (!token) { window.location.href = '/urban/auth/login'; return; }
+
+        const spacesList = document.getElementById('spaces-list');
+        const totalSpacesEl = document.getElementById('total-spaces');
+        const pendingAnalysisEl = document.getElementById('pending-analysis');
+
+        try {
+            const response = await fetch('/urban/space/list', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch spaces');
+
+            const spaces = await response.json();
+
+            totalSpacesEl.textContent = spaces.length;
+            pendingAnalysisEl.textContent = spaces.filter(s => s.status === 'pending_analysis').length;
+
+            if (spaces.length === 0) {
+                spacesList.innerHTML = `<div class="col-span-full py-12 text-center text-gray-500 italic bg-gray-50 rounded-lg">No spaces found. Click "+ Onboard New Space" to start!</div>`;
+                return;
+            }
+
+            spacesList.innerHTML = spaces.map(space => {
+                const isPending = space.status === 'pending_analysis';
+                const isAnalyzed = space.status === 'analyzed';
+                const badgeClass = isPending ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800';
+                const badgeText = space.status.replace(/_/g, ' ');
+
+                const analyzeBtn = isPending ? `
+                    <button onclick="triggerAnalysis('${space.id}', this)"
+                        class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                        <span>🤖</span> Analyze with AI
+                    </button>
+                ` : `
+                    <button onclick="showResults('${space.id}')"
+                        class="flex-1 bg-blue-50 text-blue-700 font-semibold py-2 rounded-lg hover:bg-blue-100 transition-all text-sm">
+                        📊 View Results
+                    </button>
+                `;
+
+                return `
+                    <div id="card-${space.id}" class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all">
+                        <div class="h-48 bg-gray-200 relative">
+                            <img src="/${space.image_paths[0]}" alt="${space.name}" class="w-full h-full object-cover" onerror="this.src='/static/img/placeholder.png'">
+                            <div class="absolute top-4 right-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${badgeClass} shadow-sm">${badgeText}</span>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-bold text-gray-900">${space.name}</h3>
+                                    <p class="text-sm text-gray-500 capitalize">${space.space_type}</p>
+                                </div>
+                                <p class="text-xs text-gray-400">${new Date(space.created_at).toLocaleDateString('en-IN')}</p>
+                            </div>
+                            <div id="results-${space.id}" class="hidden mb-3"></div>
+                            <div class="flex gap-2">${analyzeBtn}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Auto-show results for already analyzed spaces
+            spaces.filter(s => s.status === 'analyzed').forEach(s => showResults(s.id, s));
+
+        } catch (error) {
+            spacesList.innerHTML = `<div class="col-span-full py-12 text-center text-red-500 italic">Error loading spaces: ${error.message}</div>`;
+        }
+    }
+
+    async function triggerAnalysis(spaceId, btn) {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Analysing...`;
+        btn.className = 'flex-1 bg-gray-400 text-white font-semibold py-2 rounded-lg text-sm flex items-center justify-center gap-2 cursor-not-allowed';
+
+        try {
+            const resp = await fetch(`/urban/space/${spaceId}/analyze`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.detail || 'Analysis failed');
+            }
+
+            const data = await resp.json();
+            renderResults(spaceId, data);
+            
+            // Update badge
+            const card = document.getElementById(`card-${spaceId}`);
+            const badge = card.querySelector('span.rounded-full');
+            if (badge) { badge.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase bg-green-100 text-green-800 shadow-sm'; badge.textContent = 'analyzed'; }
+
+            // Replace button with view results
+            btn.parentElement.innerHTML = `<button onclick="showResults('${spaceId}')" class="flex-1 bg-blue-50 text-blue-700 font-semibold py-2 rounded-lg hover:bg-blue-100 transition-all text-sm">📊 View Results</button>`;
+
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '🤖 Retry Analysis';
+            btn.className = 'flex-1 bg-red-100 text-red-700 font-semibold py-2 rounded-lg hover:bg-red-200 transition-all text-sm flex items-center justify-center gap-2';
+            alert(`Analysis error: ${err.message}`);
+        }
+    }
+
+    function renderResults(spaceId, data) {
+        const container = document.getElementById(`results-${spaceId}`);
+        if (!container) return;
+
+        const crops = (data.recommended_crops || []).map(c => `
+            <div class="bg-green-50 rounded-lg p-3 text-sm">
+                <p class="font-bold text-green-800">🌱 ${c.name} <span class="text-xs font-normal text-green-600">${c.variety || ''}</span></p>
+                <div class="flex gap-3 mt-1 text-xs text-gray-600 flex-wrap">
+                    ${c.monthly_yield_kg ? `<span>📦 ${c.monthly_yield_kg}kg/mo</span>` : ''}
+                    ${c.days_to_harvest ? `<span>⏱️ ${c.days_to_harvest}d</span>` : ''}
+                    ${c.difficulty ? `<span>⭐ ${c.difficulty}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        container.classList.remove('hidden');
+        container.innerHTML = `
+            <div class="space-y-3 text-sm">
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-blue-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500">Area</p>
+                        <p class="text-xl font-bold text-blue-700">${data.estimated_area_sqm || '?'} m²</p>
+                    </div>
+                    <div class="bg-amber-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500">Sunlight</p>
+                        <p class="text-sm font-bold text-amber-700">${data.sunlight_level || '?'}</p>
+                        <p class="text-xs text-gray-400">${data.sunlight_hours_per_day || '?'}h/day</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500">Carbon Credits/yr</p>
+                        <p class="text-xl font-bold text-green-700">${data.estimated_carbon_credits_per_year || '?'}</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500">Est. Income/mo</p>
+                        <p class="text-md font-bold text-purple-700">₹${data.estimated_monthly_income_inr || '?'}</p>
+                    </div>
+                </div>
+                ${crops ? `<div class="space-y-2"><p class="font-semibold text-gray-700">Recommended Crops:</p>${crops}</div>` : ''}
+                ${data.soil_recommendation ? `<div class="bg-orange-50 rounded-lg p-3"><p class="font-semibold text-gray-700 text-xs mb-1">🪴 Soil Mix:</p><p class="text-xs text-gray-600">${data.soil_recommendation}</p></div>` : ''}
+                ${data.key_tips && data.key_tips.length ? `<div><p class="font-semibold text-gray-700 text-xs mb-1">💡 Tips:</p><ul class="list-disc list-inside text-xs text-gray-600 space-y-1">${data.key_tips.map(t => `<li>${t}</li>`).join('')}</ul></div>` : ''}
+                <div class="border-t pt-2">
+                    <span class="font-semibold text-xs">Suitability: </span>
+                    <span class="text-xs text-gray-600">${data.overall_suitability || ''} — ${data.suitability_reason || ''}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    async function showResults(spaceId, existingData) {
+        if (existingData) { renderResults(spaceId, existingData); return; }
+        // Results already stored — just toggle visibility
+        const container = document.getElementById(`results-${spaceId}`);
+        if (container) container.classList.toggle('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSpaces);
+</script>
+{% endblock %}

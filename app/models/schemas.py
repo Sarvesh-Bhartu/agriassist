@@ -78,6 +78,7 @@ class AdminDashboardFarmSchema(BaseModel):
     area_hectares: Optional[Decimal]
     area_acres: Optional[Decimal]
     carbon_credits_annual: Optional[Decimal]
+    polygon_coordinates: Optional[List[dict]] = None
     document_url: Optional[str]
     verification_status: str
     verification_comments: Optional[str]
@@ -85,7 +86,6 @@ class AdminDashboardFarmSchema(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 # ============= Plant Schemas =============
 class PlantIdentificationResponse(BaseModel):
