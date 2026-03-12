@@ -65,9 +65,11 @@ app.include_router(admin_router.router)
 @app.on_event("startup")
 async def startup_event():
     """Initialize database tables and connections"""
-    # SQLite
+    # SQLite / PostgreSQL auto-migration
     init_db()
-    print("✅ SQLite database initialized")
+    from script_create_admin import create_admin
+    create_admin()
+    print("✅ Database initialized and Administrator account verified")
     
     # Neo4j
     try:
