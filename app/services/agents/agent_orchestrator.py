@@ -304,9 +304,6 @@ async def stream_orchestrator(query: str, db) -> AsyncGenerator[str, None]:
       done       — stream complete
     """
 
-    def emit(obj: dict) -> str:
-        return f"data: {json.dumps(obj)}\n\n"
-
     # Store DB in thread-local for tools to access
     _local.db = db
 

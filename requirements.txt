@@ -16,8 +16,8 @@ passlib[bcrypt]==1.7.4
 argon2-cffi==23.1.0
 python-dotenv==1.0.0
 
-# AI Services
 google-generativeai==0.8.6
+langchain-core==0.3.39
 pillow>=10.0.0
 
 # Geospatial
