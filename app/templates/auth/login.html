@@ -20,25 +20,18 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow-xl p-8">
-            <!-- 3-way Role Toggle -->
+            <!-- 2-way Role Toggle -->
             <div class="flex rounded-xl overflow-hidden border border-green-200 mb-8">
                 <button type="button" onclick="setRole('farmer')" id="btn-farmer"
                     class="role-btn active flex-1 py-3 text-sm font-bold rounded-l-xl">
                     🌱 Farmer
                 </button>
                 <button type="button" onclick="setRole('urban')" id="btn-urban"
-                    class="role-btn flex-1 py-3 text-sm font-bold border-l border-r border-green-200">
+                    class="role-btn flex-1 py-3 text-sm font-bold rounded-r-xl border-l border-green-200">
                     🏙️ Urban Farmer
-                </button>
-                <button type="button" onclick="setRole('admin')" id="btn-admin"
-                    class="role-btn flex-1 py-3 text-sm font-bold rounded-r-xl">
-                    🛡️ Admin
                 </button>
             </div>
 
-            <p id="admin-note" class="hidden text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
-                ⚠️ Admin login uses your Admin ID and password, not phone.
-            </p>
 
             <form id="login-form" class="space-y-5" onsubmit="handleLogin(event)">
                 <div>
@@ -78,21 +71,18 @@
 
     const roleConfig = {
         farmer: { label: 'Phone Number', placeholder: '9876543210', btnText: 'Login as Farmer',       api: '/api/auth/login',   isFormData: false, dashboard: '/dashboard' },
-        urban:  { label: 'Phone Number', placeholder: '9876543210', btnText: 'Login as Urban Farmer', api: '/urban/auth/login', isFormData: true,  dashboard: '/urban/space/dashboard' },
-        admin:  { label: 'Admin ID',     placeholder: 'T12478',     btnText: 'Login as Admin',        api: '/api/admin/login',  isFormData: false, dashboard: '/admin/dashboard' }
+        urban:  { label: 'Phone Number', placeholder: '9876543210', btnText: 'Login as Urban Farmer', api: '/urban/auth/login', isFormData: true,  dashboard: '/urban/space/dashboard' }
     };
 
     function setRole(role) {
         currentRole = role;
         const cfg = roleConfig[role];
-        ['farmer', 'urban', 'admin'].forEach(r => {
+        ['farmer', 'urban'].forEach(r => {
             document.getElementById('btn-' + r).classList.toggle('active', r === role);
         });
         document.getElementById('phone-label').textContent = cfg.label;
         document.getElementById('phone').placeholder = cfg.placeholder;
         document.getElementById('submit-btn').textContent = cfg.btnText;
-        const note = document.getElementById('admin-note');
-        note.classList.toggle('hidden', role !== 'admin');
         document.getElementById('error-msg').classList.add('hidden');
     }
 
@@ -116,10 +106,11 @@
                 fd.append('password', password);
                 response = await fetch(cfg.api, { method: 'POST', body: fd });
             } else {
+                const payload = { phone, password };
                 response = await fetch(cfg.api, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone, password })
+                    body: JSON.stringify(payload)
                 });
             }
 
@@ -143,8 +134,8 @@
         }
     }
 
-    // Auto-select tab from URL hash e.g. /login#urban or /login#admin
+    // Auto-select tab from URL hash e.g. /login#urban
     const hash = window.location.hash.replace('#', '');
-    if (hash === 'urban' || hash === 'admin') setRole(hash);
+    if (hash === 'urban') setRole(hash);
 </script>
 {% endblock %}

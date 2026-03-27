@@ -948,7 +948,7 @@
     farms: { on: true, arr: [] },
     plants: { on: true, arr: [] },
     aqi: { on: false, arr: [], data: null },
-    zones: { on: false, arr: [] },
+    zones: { on: false, arr: [], data: [] },
   };
   const farmLayerMap = {};
 
@@ -1017,14 +1017,16 @@
     if (!tok) { document.getElementById('sb-farm-list').innerHTML = '<div class="empty-sb">Please log in</div>'; return; }
     const h = { 'Authorization': `Bearer ${tok}` };
     try {
-      const [r1, r2, r3] = await Promise.all([
+      const [r1, r2, r3, r4] = await Promise.all([
         fetch('/api/farms/', { headers: h }),
         fetch('/api/farms/all', { headers: h }),
         fetch('/api/plants/history?limit=50', { headers: h }),
+        fetch('/api/alerts/?limit=100', { headers: h }),
       ]);
       if (r1.ok) { myFarms = await r1.json(); renderSBFarms(myFarms); renderStats(myFarms); }
       if (r2.ok) { drawFarmPolygons((await r2.json()).farms || []); }
       if (r3.ok) { drawPlantMarkers(await r3.json()); }
+      if (r4.ok) { layers.zones.data = await r4.json(); if (layers.zones.on) drawZones(); }
     } catch (e) { console.error(e); }
     const l = document.getElementById('map-loader'); if (l) l.style.display = 'none';
   }
@@ -1100,12 +1102,24 @@
 
   function drawZones() {
     layers.zones.arr.forEach(l => map.removeLayer(l)); layers.zones.arr = [];
-    myFarms.forEach(f => {
-      if (!f.polygon_coordinates || !f.polygon_coordinates.length) return;
-      const c0 = f.polygon_coordinates[0];
-      const c = L.circle([c0.lat, c0.lon], { radius: 5000, color: '#f97316', fillColor: '#f97316', fillOpacity: .07, weight: 1.5, dashArray: '4 4' });
-      c.bindPopup(`<div class="pp-name" style="color:#fb923c">📡 Alert Zone</div><div class="pp-det">${f.name} — 5km radius</div>`);
-      if (layers.zones.on) c.addTo(map); layers.zones.arr.push(c);
+    const alerts = layers.zones.data || [];
+    alerts.forEach(a => {
+      if (!a.latitude || !a.longitude) return;
+      const r = (a.radius_km || 5) * 1000;
+      const c = L.circle([a.latitude, a.longitude], { 
+        radius: r, 
+        color: '#f97316', 
+        fillColor: '#f97316', 
+        fillOpacity: .2, 
+        weight: 3, 
+        dashArray: '5, 10' 
+      });
+      c.bindPopup(`<div class="pp-name" style="color:#fb923c">📡 Alert Zone</div>
+      <div class="pp-det"><b>${a.title}</b></div>
+      <div class="pp-det">${a.message}</div>
+      <div class="pp-det">Radius: ${a.radius_km || 5}km</div>`);
+      if (layers.zones.on) c.addTo(map);
+      layers.zones.arr.push(c);
     });
   }
 

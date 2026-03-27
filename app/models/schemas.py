@@ -170,6 +170,9 @@ class AlertResponse(BaseModel):
     title: str
     message: str
     created_at: datetime
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    radius_km: Optional[int] = None
     is_active: bool
     
     class Config:

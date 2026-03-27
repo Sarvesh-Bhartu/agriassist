@@ -11,6 +11,7 @@ from app.models.schemas import PlantDetectionResponse
 from app.services.vision_service import vision_service
 from app.services.gamification_service import gamification_service
 from app.utils.image_processing import ImageProcessor
+from app.services.alert_service import alert_service
 from app.core.config import settings
 from typing import List
 
@@ -132,14 +133,31 @@ async def identify_plant(
         event_type="plant_detected"
     )
     
-    # --- Neo4j Graph Integration & Alerts (Journey A) ---
+    # --- 1. Persistent Geo-Alert for the map (PostgreSQL) ---
+    g_lat = float(latitude) if latitude and str(latitude).strip() else None
+    g_lon = float(longitude) if longitude and str(longitude).strip() else None
+    
+    if is_invasive and g_lat and g_lon:
+        try:
+            await alert_service.create_alert(
+                db=db,
+                alert_type='Invasive Species',
+                severity='High',
+                title=f"Invasive Species Alert: {species_name}",
+                message=f"A {species_name} has been detected at {g_lat}, {g_lon}. Please check your farms nearby.",
+                latitude=g_lat,
+                longitude=g_lon,
+                radius_km=5
+            )
+        except Exception as alert_error:
+            print(f"⚠️ Failed to create persistent alert: {alert_error}")
+
+    # --- 2. Neo4j Graph Integration & SMS Alerting (Journey A) ---
     neighbors = []
     try:
         from app.services.graph_service import graph_service
-        g_lat = float(latitude) if latitude and str(latitude).strip() else None
-        g_lon = float(longitude) if longitude and str(longitude).strip() else None
         
-        # 1. Record detection in Graph
+        # Record detection in Graph
         graph_service.create_detection_record(
             farmer_id=str(current_user.id),
             detection_id=str(detection.id),
@@ -149,7 +167,7 @@ async def identify_plant(
             confidence=confidence
         )
         
-        # 2. Find neighbors within 5km and alert
+        # Find neighbors and alert via SMS
         if is_invasive and g_lat and g_lon:
             neighbors = graph_service.find_nearby_farmers(
                 plant_id=str(detection.id),

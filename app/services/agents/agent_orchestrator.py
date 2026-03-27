@@ -256,6 +256,12 @@ def _execute_tool(tool_name: str, args: dict) -> Any:
     return json.dumps({"error": f"Tool {tool_name} not found"})
 
 
+def _execute_tool_with_db(tool_name: str, args: dict, db) -> Any:
+    """Wrapper to ensure DB session is set in the executor thread's local storage."""
+    _local.db = db
+    return _execute_tool(tool_name, args)
+
+
 def _synthesize_with_langchain_results(query: str, tool_results: list[dict]) -> str:
     """Gemini synthesizes a final answer from all tool outputs."""
     combined = "\n\n".join(
@@ -362,7 +368,7 @@ async def stream_orchestrator(query: str, db) -> AsyncGenerator[str, None]:
         await asyncio.sleep(0.05)
 
         try:
-            raw_output = await loop.run_in_executor(None, _execute_tool, tn, args)
+            raw_output = await loop.run_in_executor(None, _execute_tool_with_db, tn, args, db)
             result_data = json.loads(raw_output) if isinstance(raw_output, str) else raw_output
 
             # Extract a one-line summary

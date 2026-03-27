@@ -15,7 +15,10 @@ class AlertService:
         title: str,
         message: str,
         district: str = None,
-        state: str = None
+        state: str = None,
+        latitude: float = None,
+        longitude: float = None,
+        radius_km: int = None
     ) -> Alert:
         """Create a new alert"""
         
@@ -26,6 +29,9 @@ class AlertService:
             message=message,
             district=district,
             state=state,
+            latitude=latitude,
+            longitude=longitude,
+            radius_km=radius_km,
             is_active=True
         )
         
@@ -56,7 +62,8 @@ class AlertService:
         ).filter(
             (Alert.district == farmer.district) | 
             (Alert.state == farmer.state) |
-            (Alert.district.is_(None))
+            (Alert.district.is_(None)) |
+            (Alert.latitude.is_not(None))  # Include geo-spatial alerts
         ).order_by(
             Alert.created_at.desc()
         ).limit(limit).all()

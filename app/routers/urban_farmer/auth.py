@@ -5,8 +5,10 @@ from fastapi.templating import Jinja2Templates
 from app.core.neo4j_driver import neo4j_driver
 from app.core.security import get_password_hash, verify_password, create_access_token, get_current_urban_farmer
 from app.models.urban_farmer_models import UrbanFarmerCreate, UrbanFarmerResponse
+import os
 import uuid
 import datetime
+from neo4j.exceptions import ServiceUnavailable
 
 import os
 from fastapi.templating import Jinja2Templates
@@ -39,7 +41,11 @@ async def register_urban_farmer(farmer: UrbanFarmerCreate):
     session = neo4j_driver.get_session()
     try:
         # Check if phone exists
-        result = session.run("MATCH (u:UrbanFarmer {phone: $phone}) RETURN u", phone=farmer.phone)
+        try:
+            result = session.run("MATCH (u:UrbanFarmer {phone: $phone}) RETURN u", phone=farmer.phone)
+        except ServiceUnavailable:
+            raise HTTPException(status_code=503, detail="Neo4j service is currently unavailable. Please check your Aura DB connection.")
+            
         if result.single():
             raise HTTPException(status_code=400, detail="Phone number already registered")
             
@@ -108,7 +114,11 @@ async def login_urban_farmer(form_data: OAuth2PasswordRequestForm = Depends()):
     """API endpoint for Urban Farmer login"""
     session = neo4j_driver.get_session()
     try:
-        result = session.run("MATCH (u:UrbanFarmer {phone: $phone}) RETURN u", phone=form_data.username)
+        try:
+            result = session.run("MATCH (u:UrbanFarmer {phone: $phone}) RETURN u", phone=form_data.username)
+        except ServiceUnavailable:
+            raise HTTPException(status_code=503, detail="Neo4j service is currently unavailable. Please check your Aura DB connection.")
+            
         record = result.single()
         
         if not record:

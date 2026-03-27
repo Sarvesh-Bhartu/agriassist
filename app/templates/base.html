@@ -142,21 +142,15 @@
                         <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 mx-3 rounded text-center">Logout</button>
                         `;
 
-                        // Show navigation links on desktop, while keeping them hidden on mobile
+                        // If urban, hide all regular farmer links
+                        if (isUrban) {
+                            Array.from(navLinks.children).forEach(child => child.classList.add('hidden'));
+                            Array.from(mobileNavLinks.children).forEach(child => child.classList.add('hidden'));
+                        }
+
+                        // Show navigation links container
                         navLinks.classList.add('md:flex');
                         mobileNavLinks.classList.remove('hidden');
-                        
-                        // If urban, add dashboard link if not present
-                        if (isUrban) {
-                            const urbanDashLink = document.createElement('a');
-                            urbanDashLink.href = '/urban/space/dashboard';
-                            urbanDashLink.className = 'hover:bg-green-600 px-3 py-2 rounded';
-                            urbanDashLink.textContent = 'Urban Dashboard';
-                            // Avoid duplicates
-                            if (!Array.from(navLinks.children).some(el => el.textContent === 'Urban Dashboard')) {
-                                navLinks.prepend(urbanDashLink);
-                            }
-                        }
                     })
                     .catch(() => {
                         // Token invalid, clear it
