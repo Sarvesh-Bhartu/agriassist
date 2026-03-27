@@ -1,27 +1,31 @@
 import os
-import cv2
-import uuid
 import logging
-from ultralytics import YOLO
+import uuid
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ultralytics import YOLO
+    import cv2
+    HAS_ML = True
+except ImportError:
+    HAS_ML = False
+    logger.warning("⚠️ ML dependencies (ultralytics, cv2) not found. Running in LIGHTWEIGHT_MODE.")
+
 # Model configuration
 MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ml_models")
-MODEL_PATH = os.path.join(MODEL_DIR, "yolov8n.pt") # Using the base YOLOv8 model for demonstration
+MODEL_PATH = os.path.join(MODEL_DIR, "yolov8n.pt") 
 
 class VisionService:
-    """Service for handling plant image analysis using YOLOv8."""
+    """Service for handling plant image analysis. Supports fallback for Lightweight Mode."""
     
     def __init__(self):
-        # We try to initialize the model right away or lazily.
         self.model = None
-        self._initialize_model()
+        if HAS_ML:
+            self._initialize_model()
 
     def _initialize_model(self):
         try:
-            # We are using yolov8n.pt which ultralytics will auto-download to the current dir if not specified.
-            # However, by passing the path, it will download it there if missing.
             self.model = YOLO(MODEL_PATH)
             logger.info("✅ YOLOv8 model loaded successfully.")
         except Exception as e:

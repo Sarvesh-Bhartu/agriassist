@@ -38,12 +38,13 @@ email-validator>=2.1.0
 # Graph Database
 neo4j==5.16.0
 
-# Machine Learning & Computer Vision (CPU only to avoid 10-minute build timeout)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
-torchvision
-ultralytics
-opencv-python-headless
+# Machine Learning & Computer Vision (COMMEMTED OUT for Render 512MB RAM)
+# To use these, you need at least 2GB RAM (Railway Pro or Hugging Face)
+# --extra-index-url https://download.pytorch.org/whl/cpu
+# torch
+# torchvision
+# ultralytics
+# opencv-python-headless
 
 # Communication
 twilio==9.0.0
