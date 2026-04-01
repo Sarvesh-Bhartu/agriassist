@@ -22,6 +22,25 @@ from typing import AsyncGenerator, Any
 # ── LangChain imports ─────────────────────────────────────────────────────
 from langchain_core.tools import tool as lc_tool
 from langchain_core.tools import BaseTool
+import langchain_core.globals as lc_globals
+
+# Fix for "module 'langchain' has no attribute 'debug'"
+# This happens because some internal langchain-core logic checks for the global debug flag
+# in the 'langchain' package, which may be missing or mismatched in the environment.
+try:
+    import langchain
+    if not hasattr(langchain, "debug"):
+        langchain.debug = False
+except ImportError:
+    import sys
+    from types import ModuleType
+    m = ModuleType("langchain")
+    m.debug = False
+    sys.modules["langchain"] = m
+
+# Explicitly disable debug in langchain-core globals
+lc_globals.set_debug(False)
+
 
 # ── Gemini direct SDK ─────────────────────────────────────────────────────
 import google.generativeai as genai
@@ -289,6 +308,10 @@ Plain text only, no markdown headers.
 # ══════════════════════════════════════════════════════════════════════════
 #  SSE Streaming Orchestrator
 # ══════════════════════════════════════════════════════════════════════════
+
+def emit(data: dict) -> str:
+    """Helper to format a dictionary as an SSE data block."""
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 async def stream_orchestrator(query: str, db) -> AsyncGenerator[str, None]:
     """
