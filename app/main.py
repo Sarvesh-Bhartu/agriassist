@@ -62,7 +62,7 @@ app.include_router(gamification.router)
 app.include_router(voice_bot.router)
 app.include_router(admin_router.router)
 
-@app.get("/urban-ping")
+@app.api_route("/urban-ping", methods=["GET", "HEAD"])
 async def urban_ping():
     return {"status": "URBAN_ACTIVE", "version": "2.0.0-BETA", "timestamp": str(datetime.datetime.now())}
 
@@ -94,7 +94,7 @@ async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     return {
         "status": "healthy",
