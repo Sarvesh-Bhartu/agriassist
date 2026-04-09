@@ -221,9 +221,9 @@ class GeminiService:
             return None
 
     async def generate_text_response(self, prompt: str) -> str:
-        """Generate a raw text response for Voice/IVR using Gemini/Groq."""
+        """Generate a raw text response for Voice/IVR using exclusively Groq Llama 3."""
         try:
-            return await self._generate_text_with_retry(prompt)
+            return await self._call_groq_text(prompt)
         except Exception as e:
             import traceback
             import tempfile
