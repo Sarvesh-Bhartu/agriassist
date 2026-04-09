@@ -29,6 +29,7 @@ class GeminiService:
             
         self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
         self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.use_groq_exclusively = False
 
     def get_vision_model(self):
         """Get Gemini Vision model (Legacy getter)"""
@@ -90,6 +91,9 @@ class GeminiService:
 
     async def _generate_text_with_retry(self, prompt: str) -> str:
         """Helper to try Gemini keys, and fallback to Groq on Exhaustion"""
+        if self.use_groq_exclusively:
+            return await self._call_groq_text(prompt)
+            
         while True:
             try:
                 response = self.pro_model.generate_content(prompt)
@@ -103,7 +107,7 @@ class GeminiService:
                 
                 # If we're here, it's either not a quota error OR all keys are exhausted
                 print(f"Gemini wrapper completely failed: {e}")
-                self.reset_key_cycle()
+                self.use_groq_exclusively = True
                 
                 try:
                     return await self._call_groq_text(prompt)
