@@ -7,7 +7,7 @@ class GeminiService:
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
         self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
-        self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.pro_model = genai.GenerativeModel('gemini-1.5-flash')
     
     def get_vision_model(self):
         """Get Gemini Vision model"""
