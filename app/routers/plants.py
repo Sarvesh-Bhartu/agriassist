@@ -178,25 +178,25 @@ async def identify_plant(
             # Real Twilio SMS Alert
             if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN and settings.TWILIO_PHONE_NUMBER:
                 from twilio.rest import Client
-                try:
-                    twilio_client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-                    for neighbor in neighbors:
-                        # Ensure the phone number has the +91 country code
-                        target_phone = neighbor['phone']
-                        if len(target_phone) == 10 and target_phone.isdigit():
-                            target_phone = f"+91{target_phone}"
-                        elif not target_phone.startswith('+'):
-                            target_phone = f"+{target_phone}"
-                            
-                        msg_body = f"⚠️ AgriAssist Alert: {species_name} detected {neighbor['distance_km']}km near your farm! Please remain vigilant."
+                twilio_client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+                for neighbor in neighbors:
+                    # Ensure the phone number has the +91 country code
+                    target_phone = neighbor['phone']
+                    if len(target_phone) == 10 and target_phone.isdigit():
+                        target_phone = f"+91{target_phone}"
+                    elif not target_phone.startswith('+'):
+                        target_phone = f"+{target_phone}"
+                        
+                    msg_body = f"⚠️ AgriAssist Alert: {species_name} detected {neighbor['distance_km']}km near your farm! Please remain vigilant."
+                    try:
                         message = twilio_client.messages.create(
                             body=msg_body,
                             from_=settings.TWILIO_PHONE_NUMBER,
                             to=target_phone
                         )
                         print(f"✅ Real SMS sent to {target_phone}! Message ID: {message.sid}")
-                except Exception as sms_error:
-                    print(f"❌ Failed to send Twilio SMS: {sms_error}")
+                    except Exception as sms_error:
+                        print(f"❌ Failed to send Twilio SMS to {target_phone}: {sms_error}")
             else:
                 # Fallback to simulation if keys are missing
                 for neighbor in neighbors:
