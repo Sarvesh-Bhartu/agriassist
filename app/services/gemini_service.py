@@ -1,29 +1,119 @@
 import google.generativeai as genai
 from app.core.config import settings
+import os
+import json
+import httpx
+import traceback
+import io
+from PIL import Image
 
 class GeminiService:
-    """Base Gemini API service (Vision and Text)"""
+    """Robust AI service with Gemini Key Rotation and Groq Fallback."""
     
     def __init__(self):
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        # 1. Parse Gemini Pool from Pydantic settings
+        pool_str = getattr(settings, "GEMINI_API_KEY_POOL", "")
+        if pool_str is None:
+            pool_str = ""
+        self.keys = [k.strip() for k in pool_str.split(",") if k.strip()]
+        
+        if not self.keys:
+            # Fallback for earlier setups without pool
+            single_key = getattr(settings, "GEMINI_API_KEY", None)
+            if single_key:
+                self.keys = [single_key]
+                
+        self.current_key_idx = 0
+        if self.keys:
+            genai.configure(api_key=self.keys[self.current_key_idx])
+            
         self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
         self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
-    
+
     def get_vision_model(self):
-        """Get Gemini Vision model"""
+        """Get Gemini Vision model (Legacy getter)"""
         return self.vision_model
     
     def get_pro_model(self):
-        """Get Gemini Pro model"""
+        """Get Gemini Pro model (Legacy getter)"""
         return self.pro_model
+
+    def rotate_key(self) -> bool:
+        """Rotates to the next Gemini key. Returns False if all keys exhausted."""
+        if not self.keys or self.current_key_idx >= len(self.keys) - 1:
+            return False # no more keys
+        self.current_key_idx += 1
+        print(f"QUOTA EXCEEDED! Rotating to Gemini Key #{self.current_key_idx + 1}")
+        genai.configure(api_key=self.keys[self.current_key_idx])
+        # Re-initialize models with new config context
+        self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
+        return True
+
+    def reset_key_cycle(self):
+        """Reset sequence after total failures to ensure next request starts fresh"""
+        if self.keys:
+            self.current_key_idx = 0
+            genai.configure(api_key=self.keys[self.current_key_idx])
+            self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
+            self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
+
+    async def _call_groq_text(self, prompt: str) -> str:
+        """Fallback to Groq Llama-3 API if Gemini pool is exhausted."""
+        print("Switching to Groq Llama-3 API Fallback...")
+        groq_api_key = getattr(settings, "GROQ_API_KEY", "")
+        if groq_api_key is None:
+            groq_api_key = ""
+        groq_api_key = groq_api_key.strip()
+        
+        if not groq_api_key:
+            raise Exception("No Groq API Key available for fallback.")
+            
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {groq_api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "llama-3.1-8b-instant",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.5
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload, timeout=15.0)
+            response.raise_for_status()
+            data = response.json()
+            return data['choices'][0]['message']['content'].strip()
+
+    async def _generate_text_with_retry(self, prompt: str) -> str:
+        """Helper to try Gemini keys, and fallback to Groq on Exhaustion"""
+        while True:
+            try:
+                response = self.pro_model.generate_content(prompt)
+                return response.text.strip()
+            except Exception as e:
+                error_msg = str(e).lower()
+                # Check for quota or 429
+                if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg:
+                    if self.rotate_key():
+                        continue # try the prompt again with new key
+                
+                # If we're here, it's either not a quota error OR all keys are exhausted
+                print(f"Gemini wrapper completely failed: {e}")
+                self.reset_key_cycle()
+                
+                try:
+                    return await self._call_groq_text(prompt)
+                except Exception as groq_err:
+                    print(f"Groq Fallback also failed: {groq_err}")
+                    raise groq_err
 
     async def identify_plant(self, image_data: bytes) -> dict:
         """Identify plant species and details using Gemini Vision."""
         try:
-            import json
-            import io
-            from PIL import Image
-
             img = Image.open(io.BytesIO(image_data))
             
             prompt = """
@@ -40,10 +130,19 @@ class GeminiService:
             Ensure the response is raw JSON with no markdown formatting or backticks.
             """
             
-            response = self.vision_model.generate_content([prompt, img])
-            result_text = response.text.strip()
+            result_text = None
+            while True:
+                try:
+                    response = self.vision_model.generate_content([prompt, img])
+                    result_text = response.text.strip()
+                    break
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg:
+                        if self.rotate_key():
+                            continue
+                    raise e
             
-            # Clean possible markdown JSON wrappers
             if result_text.startswith("```json"):
                 result_text = result_text[7:]
             if result_text.startswith("```"):
@@ -55,13 +154,12 @@ class GeminiService:
             
         except Exception as e:
             print(f"Gemini Vision Error: {e}")
+            self.reset_key_cycle()
             return None
 
     async def generate_crop_recommendation(self, farm_data: dict, local_trends: dict, user_preferences: dict) -> dict:
         """Generate AI crop recommendations using Gemini with Farm data and Neo4j context."""
         try:
-            import json
-            
             prompt = f"""
             You are an expert Agronomist AI for the 'AgriAssist' platform in India. 
             Analyze the following data to recommend the most profitable and suitable crop for this farmer.
@@ -82,18 +180,19 @@ class GeminiService:
             - Average nearby farm size: {local_trends.get('average_neighbor_farm_size_hectares', 'Unknown')} ha
 
             Based heavily on their soil type, available water source, the season they chose, and their exact budget, recommend ONE high-yield crop and variety.
-            
+            CRITICAL INSTRUCTION: Your cost breakdown MUST sum up perfectly to their Investment Budget. Your expected profit MUST be mathematically realistic based on Indian agricultural standards for that investment size (typically 30% to 150% ROI). DO NOT inflate profits ridiculously high.
+
             IMPORTANT: Return ONLY a raw JSON object string with no markdown formatting. The JSON must EXACTLY match this structure:
             {{
                 "crop": "Name of the crop (e.g., Wheat)",
                 "variety": "Specific high-yield variety (e.g., HD-2967)",
-                "expected_profit_min": 50000.0,
-                "expected_profit_max": 75000.0,
+                "expected_profit_min": <FLOAT: realistic low-end net profit strictly based on budget>,
+                "expected_profit_max": <FLOAT: realistic high-end net profit strictly based on budget>,
                 "investment_breakdown": {{
-                    "Seeds": 5000,
-                    "Fertilizer": 15000,
-                    "Labor": 10000,
-                    "Irrigation/Misc": 5000
+                    "Seeds": <INT: proportional cost>,
+                    "Fertilizer": <INT: proportional cost>,
+                    "Labor": <INT: proportional cost>,
+                    "Irrigation/Misc": <INT: proportional cost>
                 }},
                 "risk_factors": ["List 2-3 risks like specific pests or weather"],
                 "timeline": "e.g. 120-130 days",
@@ -101,10 +200,8 @@ class GeminiService:
             }}
             """
             
-            response = self.pro_model.generate_content(prompt)
-            result_text = response.text.strip()
+            result_text = await self._generate_text_with_retry(prompt)
             
-            # Clean possible markdown JSON wrappers
             if result_text.startswith("```json"):
                 result_text = result_text[7:]
             if result_text.startswith("```"):
@@ -115,22 +212,24 @@ class GeminiService:
             return json.loads(result_text.strip())
             
         except Exception as e:
-            import traceback
-            print(f"Gemini Recommendation Error: {e}")
-            try:
-                print(f"RAW TEXT WAS: {result_text}")
-            except:
-                pass
             traceback.print_exc()
+            print(f"Gemini Recommendation Error: {e}")
             return None
 
     async def generate_text_response(self, prompt: str) -> str:
-        """Generate a raw text response for Voice/IVR using Gemini."""
+        """Generate a raw text response for Voice/IVR using Gemini/Groq."""
         try:
-            response = self.pro_model.generate_content(prompt)
-            return response.text.strip()
+            return await self._generate_text_with_retry(prompt)
         except Exception as e:
-            print(f"Gemini Voice Response Error: {e}")
+            import traceback
+            import tempfile
+            with open("error_log.txt", "a") as f:
+                f.write("\\n\\n--- IVR ERROR ---\\n")
+                f.write(traceback.format_exc())
+            try:
+                print(f"Gemini/Groq Voice Response Error: {e}")
+            except Exception:
+                pass
             return "माफ़ करें, अभी कोई तकनीकी समस्या है। कृपया बाद में प्रयास करें।"
 
 # Create singleton instance
