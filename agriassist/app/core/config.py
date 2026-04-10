@@ -15,8 +15,10 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./agritech.db"
     
-    # Google Gemini API
-    GEMINI_API_KEY: str
+ # Google Gemini API & Groq
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY_POOL: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None
     
     # File Upload
     MAX_UPLOAD_SIZE_MB: int = 10
@@ -67,6 +69,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 # Create global settings instance
