@@ -1,0 +1,755 @@
+{% extends "base.html" %}
+
+{% block title %}Urban Farmer Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">🏙️ Urban Farmer Dashboard</h1>
+        <div class="flex gap-3">
+            <button onclick="openScanModal()"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2">
+                🔍 Scan Health
+            </button>
+            <a href="/urban/space/submit"
+                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all">
+                + Onboard New Space
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
+            <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold">Active Spaces</p>
+            <p class="text-3xl font-bold" id="total-spaces">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-yellow-500">
+            <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold">Pending Analysis</p>
+            <p class="text-3xl font-bold" id="pending-analysis">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
+            <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold">Est. Carbon Credits</p>
+            <p class="text-3xl font-bold">0.0</p>
+        </div>
+    </div>
+
+    <h2 class="text-2xl font-bold mb-4">Your Balconies & Terraces</h2>
+    <div id="spaces-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Will be populated by JS -->
+        <div class="col-span-full py-12 text-center text-gray-500 italic bg-gray-50 rounded-lg">
+            No spaces found. Click "+ Onboard New Space" to start!
+        </div>
+    </div>
+
+    <!-- Mandi Prices for Plan Crops -->
+    <div class="mt-16 bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">💹 Mandi Price Trends</h2>
+            <p class="text-xs text-gray-500">(Filtered for your planting plans)</p>
+        </div>
+        <div id="mandi-prices" class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <!-- Populated by JS -->
+            <p class="col-span-full text-center text-gray-400 py-6 italic text-sm">No active plans found. Create a plan
+                to see relevant market prices!</p>
+        </div>
+    </div>
+</div>
+
+<!-- Growth Log Modal -->
+<div id="log-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transition-all transform scale-95 opacity-0"
+        id="log-modal-content">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-900">🌱 Post Growth Update</h3>
+            <button onclick="closeLogModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        <form id="log-form" onsubmit="handleLogSubmit(event)" class="space-y-4">
+            <input type="hidden" id="log-plan-id">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Observation / Note</label>
+                <textarea id="log-note" required rows="3"
+                    placeholder="e.g., First sprouts appearing! Added organic fertilizer today."
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Photo (Optional)</label>
+                <div class="flex items-center justify-center w-full">
+                    <label
+                        class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-all"
+                        id="dropzone">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6" id="preview-container">
+                            <span class="text-3xl mb-2">📸</span>
+                            <p class="text-xs text-gray-500">Click to upload photo</p>
+                        </div>
+                        <input type="file" id="log-image" accept="image/*" class="hidden"
+                            onchange="previewLogImage(this)">
+                    </label>
+                </div>
+            </div>
+            <button type="submit" id="log-submit-btn"
+                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all">
+                Post to Timeline
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Disease Scanner Modal -->
+<div id="scan-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transition-all transform scale-95 opacity-0"
+        id="scan-modal-content">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-900">YOLO Disease Scanner</h3>
+            <button onclick="closeScanModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        <div id="scan-loading" class="hidden text-center py-8">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">Analyzing your plant with AI...</p>
+        </div>
+        <div id="scan-input">
+            <p class="text-sm text-gray-500 mb-6 text-center">Take a clear photo of the plant or affected leaves for accurate results.</p>
+            <div class="flex gap-4">
+                <button onclick="document.getElementById('file-input').click()"
+                    class="flex-1 bg-green-600 text-white font-bold py-4 rounded-xl flex flex-col items-center gap-2">
+                    <span class="text-2xl">📸</span> Camera / Upload
+                </button>
+                <input type="file" id="file-input" accept="image/*" class="hidden" onchange="performScan(this)">
+            </div>
+        </div>
+        <div id="scan-result" class="hidden space-y-4">
+            <div id="result-img" class="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-4"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <p class="text-[10px] uppercase text-blue-500 font-bold">Species</p>
+                    <p id="res-species" class="font-bold text-blue-900">Unknown</p>
+                </div>
+                <div id="res-status-box" class="p-3 rounded-lg border">
+                    <p class="text-[10px] uppercase font-bold" id="res-status-label">Status</p>
+                    <p id="res-status" class="font-bold">Healthy</p>
+                </div>
+            </div>
+            <button onclick="resetScan()" class="w-full py-2 text-sm text-gray-500 hover:text-gray-700">Scan Another</button>
+        </div>
+    </div>
+</div>
+
+<!-- Urban AI Chat Sticky Bubble -->
+<button onclick="toggleChat()"
+    class="fixed bottom-8 right-8 w-16 h-16 bg-green-600 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl hover:bg-green-700 transition-all z-50 animate-bounce">
+    🤖
+</button>
+
+<!-- Urban AI Chat Window -->
+<div id="chat-window"
+    class="fixed bottom-28 right-8 w-80 md:w-96 h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col hidden z-50 border border-gray-100 transition-all transform scale-95 opacity-0">
+    <div class="p-4 bg-green-600 text-white rounded-t-2xl flex justify-between items-center">
+        <div>
+            <h3 class="font-bold">Urban AgriAssist AI</h3>
+            <p class="text-[10px] opacity-80">Online | Personalized Assistant</p>
+        </div>
+        <button onclick="toggleChat()" class="text-white text-xl">&times;</button>
+    </div>
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div class="bg-white p-3 rounded-lg border border-gray-200 text-sm shadow-sm max-w-[85%]">
+            Hello! I'm your specialized Urban AI. How can I help with your balcony garden today?
+        </div>
+    </div>
+    <div class="p-4 border-t bg-white rounded-b-2xl">
+        <form onsubmit="sendChatMessage(event)" class="flex gap-2">
+            <input type="text" id="chat-input" placeholder="Ask about your plants..."
+                class="flex-1 px-4 py-2 border border-gray-200 rounded-full text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all">
+            <button type="submit"
+                class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-all">
+                ➡️
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function loadSpaces() {
+        const token = localStorage.getItem('token');
+        if (!token) { window.location.href = '/urban/auth/login'; return; }
+
+        const spacesList = document.getElementById('spaces-list');
+        const totalSpacesEl = document.getElementById('total-spaces');
+        const pendingAnalysisEl = document.getElementById('pending-analysis');
+
+        try {
+            const response = await fetch('/urban/space/list', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch spaces');
+
+            const spaces = await response.json();
+
+            totalSpacesEl.textContent = spaces.length;
+            pendingAnalysisEl.textContent = spaces.filter(s => s.status === 'pending_analysis').length;
+
+            if (spaces.length === 0) {
+                spacesList.innerHTML = `<div class="col-span-full py-12 text-center text-gray-500 italic bg-gray-50 rounded-lg">No spaces found. Click "+ Onboard New Space" to start!</div>`;
+                return;
+            }
+
+            spacesList.innerHTML = spaces.map(space => {
+                const isPending = space.status === 'pending_analysis';
+                const isAnalyzed = space.status === 'analyzed';
+                const isPlanned = space.status === 'planned';
+
+                let badgeClass = 'bg-gray-100 text-gray-800';
+                if (isPending) badgeClass = 'bg-yellow-100 text-yellow-800';
+                if (isAnalyzed) badgeClass = 'bg-blue-100 text-blue-800';
+                if (isPlanned) badgeClass = 'bg-green-100 text-green-800';
+
+                const badgeText = space.status.replace(/_/g, ' ');
+
+                let actions = '';
+                if (isPending) {
+                    actions = `
+                        <button onclick="triggerAnalysis('${space.id}', this)"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                            <span>🤖</span> Analyze with AI
+                        </button>`;
+                } else if (isAnalyzed) {
+                    actions = `
+                        <button onclick="toggleResults('${space.id}')"
+                            class="flex-1 bg-blue-50 text-blue-700 font-semibold py-2 rounded-lg hover:bg-blue-100 transition-all text-sm">
+                            📊 Analysis
+                        </button>
+                        <button onclick="generatePlan('${space.id}', this)"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition-all text-sm">
+                            ✨ Create Plan
+                        </button>`;
+                } else if (isPlanned) {
+                    actions = `
+                        <button onclick="toggleResults('${space.id}')"
+                            class="flex-1 bg-blue-50 text-blue-700 font-semibold py-2 rounded-lg hover:bg-blue-100 transition-all text-sm">
+                            📊 Analysis
+                        </button>
+                        <button onclick="fetchAndShowPlan('${space.id}')"
+                            class="flex-1 bg-green-50 text-green-700 font-semibold py-2 rounded-lg hover:bg-green-100 transition-all text-sm">
+                            🗓️ View Plan
+                        </button>`;
+                }
+
+                return `
+                    <div id="card-${space.id}" class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all h-fit">
+                        <div class="h-48 bg-gray-200 relative">
+                            <img src="/${space.image_paths[0]}" alt="${space.name}" class="w-full h-full object-cover" onerror="this.src='/static/img/placeholder.png'">
+                            <div class="absolute top-4 right-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${badgeClass} shadow-sm">${badgeText}</span>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-bold text-gray-900">${space.name}</h3>
+                                    <p class="text-sm text-gray-500 capitalize">${space.space_type}</p>
+                                </div>
+                                <p class="text-xs text-gray-400">${new Date(space.created_at).toLocaleDateString('en-IN')}</p>
+                            </div>
+                            <div id="results-${space.id}" class="hidden mb-4 p-4 bg-gray-50 rounded-lg border border-gray-100"></div>
+                            <div id="plan-${space.id}" class="hidden mb-4 p-4 bg-green-50 rounded-lg border border-green-100"></div>
+                            <div class="flex gap-2">${actions}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Store analysis data on the cards for toggling
+            spaces.forEach(s => {
+                if (s.overall_suitability) {
+                    // It was already analyzed, we have the props in the 's' object
+                    const resultData = {
+                        estimated_area_sqm: s.estimated_area_sqm,
+                        sunlight_level: s.sunlight_level,
+                        sunlight_hours_per_day: s.sunlight_hours_per_day,
+                        estimated_carbon_credits_per_year: s.estimated_carbon_credits_per_year,
+                        estimated_monthly_income_inr: s.estimated_monthly_income_inr,
+                        soil_recommendation: s.soil_recommendation,
+                        key_tips: JSON.parse(s.key_tips_json || '[]'),
+                        overall_suitability: s.overall_suitability,
+                        suitability_reason: s.suitability_reason,
+                        recommended_crops: JSON.parse(s.recommended_crops_json || '[]')
+                    };
+                    renderResults(s.id, resultData);
+                }
+            });
+
+        } catch (error) {
+            spacesList.innerHTML = `<div class="col-span-full py-12 text-center text-red-500 italic">Error loading spaces: ${error.message}</div>`;
+        }
+    }
+
+    async function triggerAnalysis(spaceId, btn) {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Analysing...`;
+        btn.className = 'flex-1 bg-gray-400 text-white font-semibold py-2 rounded-lg text-sm flex items-center justify-center gap-2 cursor-not-allowed';
+
+        try {
+            const resp = await fetch(`/urban/space/${spaceId}/analyze`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.detail || 'Analysis failed');
+            }
+
+            const data = await resp.json();
+            renderResults(spaceId, data);
+
+            // Update badge
+            const card = document.getElementById(`card-${spaceId}`);
+            const badge = card.querySelector('span.rounded-full');
+            if (badge) { badge.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase bg-green-100 text-green-800 shadow-sm'; badge.textContent = 'analyzed'; }
+
+            // Replace button with view results
+            if (badge) { badge.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase bg-blue-100 text-blue-800 shadow-sm'; badge.textContent = 'analyzed'; }
+
+            // Replace button with view results and create plan
+            btn.parentElement.innerHTML = `
+                <button onclick="toggleResults('${spaceId}')" class="flex-1 bg-blue-50 text-blue-700 font-semibold py-2 rounded-lg hover:bg-blue-100 transition-all text-sm">📊 Analysis</button>
+                <button onclick="generatePlan('${spaceId}', this)" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition-all text-sm">✨ Create Plan</button>
+            `;
+
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '🤖 Retry Analysis';
+            btn.className = 'flex-1 bg-red-100 text-red-700 font-semibold py-2 rounded-lg hover:bg-red-200 transition-all text-sm flex items-center justify-center gap-2';
+            alert(`Analysis error: ${err.message}`);
+        }
+    }
+
+    async function generatePlan(spaceId, btn) {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        btn.disabled = true;
+        const oldContent = btn.innerHTML;
+        btn.innerHTML = `<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Generating...`;
+
+        try {
+            const resp = await fetch(`/urban/space/${spaceId}/plan`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.detail || 'Plan generation failed');
+            }
+
+            const plan = await resp.json();
+            renderPlan(spaceId, plan);
+
+            // Reload to update buttons/badges
+            loadSpaces();
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = oldContent;
+            alert(`Plan error: ${err.message}`);
+        }
+    }
+
+    async function fetchAndShowPlan(spaceId) {
+        const token = localStorage.getItem('token');
+        const planContainer = document.getElementById(`plan-${spaceId}`);
+
+        if (!planContainer.classList.contains('hidden')) {
+            planContainer.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/urban/space/${spaceId}/plan`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) throw new Error('Failed to fetch plan');
+            const plan = await resp.json();
+            renderPlan(spaceId, plan);
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    function renderResults(spaceId, data) {
+        const container = document.getElementById(`results-${spaceId}`);
+        if (!container) return;
+
+        const crops = (data.recommended_crops || []).map(c => `
+            <div class="bg-blue-50 rounded-lg p-2 text-xs border border-blue-100">
+                <p class="font-bold text-blue-800">🌱 ${c.name}</p>
+                <p class="text-gray-600">${c.variety || ''}</p>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-2 text-center">
+                    <div class="bg-white p-2 border rounded shadow-sm">
+                        <p class="text-[10px] uppercase text-gray-400">Area</p>
+                        <p class="font-bold text-gray-700">${data.estimated_area_sqm || '?'} m²</p>
+                    </div>
+                    <div class="bg-white p-2 border rounded shadow-sm">
+                        <p class="text-[10px] uppercase text-gray-400">Sunlight</p>
+                        <p class="font-bold text-gray-700">${data.sunlight_level || '?'}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-2 font-semibold text-gray-700">
+                   ${crops}
+                </div>
+                <div class="text-xs text-gray-500 italic mt-2">
+                    ${data.suitability_reason || ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPlan(spaceId, plan) {
+        const container = document.getElementById(`plan-${spaceId}`);
+        if (!container) return;
+
+        const steps = (plan.steps || []).sort((a, b) => a.week - b.week).map(s => `
+            <div class="flex gap-3 mb-2">
+                <div class="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center text-[10px] font-bold text-green-800 shrink-0">W${s.week}</div>
+                <div>
+                    <p class="text-xs font-bold text-green-900">${s.action} - ${s.crop_name}</p>
+                    <p class="text-[10px] text-green-700">${s.description}</p>
+                </div>
+            </div>
+        `).join('');
+
+        const budget = (plan.budget_breakdown || []).map(b => `
+            <div class="flex justify-between text-[10px] text-gray-600 mb-1">
+                <span>${b.item}</span>
+                <span class="font-bold">₹${b.estimated_cost_inr}</span>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <h4 class="font-bold text-green-800 text-sm mb-3 underline decoration-green-300">${plan.name}</h4>
+            
+            <div class="mb-4 bg-white p-2 rounded border border-green-200">
+                <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Spatial Layout</p>
+                <div class="w-full flex justify-center">
+                    ${plan.layout_diagram_svg}
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Timeline</p>
+                ${steps}
+            </div>
+
+            <div class="mb-4 p-2 bg-white rounded border border-green-200">
+                <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Budget Allocation</p>
+                ${budget}
+                <div class="border-t mt-1 pt-1 flex justify-between font-bold text-green-800 text-xs">
+                    <span>Total Estimated</span>
+                    <span>₹${plan.total_budget_est}</span>
+                </div>
+            </div>
+
+            <div class="text-[10px] text-green-800 italic mb-4">
+                <strong>Tips:</strong> ${(plan.maintenance_tips || []).join('. ')}
+            </div>
+
+            <div class="flex gap-2 mb-4">
+                <button onclick="openLogModal('${plan.plan_id}')" class="flex-1 bg-green-100 text-green-700 font-bold py-2 rounded-lg text-xs hover:bg-green-200 transition-all">
+                    📸 Update Growth
+                </button>
+                <a href="/urban/space/${spaceId}/plan/view" target="_blank" class="flex-1 text-center bg-gray-100 text-gray-700 font-bold py-2 rounded-lg text-xs hover:bg-gray-200 transition-all">
+                    🖨️ PDF Report
+                </a>
+            </div>
+
+            <div id="timeline-${plan.plan_id}" class="mt-6 border-t pt-4 space-y-4">
+                <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Growth Timeline</p>
+                <div class="timeline-logs space-y-4">
+                    <!-- Logs will be loaded here -->
+                </div>
+            </div>
+        `;
+        container.classList.remove('hidden');
+        loadLogs(plan.plan_id);
+    }
+
+    function openLogModal(planId) {
+        document.getElementById('log-plan-id').value = planId;
+        const modal = document.getElementById('log-modal');
+        const content = document.getElementById('log-modal-content');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeLogModal() {
+        const modal = document.getElementById('log-modal');
+        const content = document.getElementById('log-modal-content');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.getElementById('log-form').reset();
+            document.getElementById('preview-container').innerHTML = `<span class="text-3xl mb-2">📸</span><p class="text-xs text-gray-500">Click to upload photo</p>`;
+        }, 300);
+    }
+
+    function previewLogImage(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('preview-container').innerHTML = `<img src="${e.target.result}" class="h-full w-auto max-w-full rounded-lg object-contain">`;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    async function handleLogSubmit(e) {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const planId = document.getElementById('log-plan-id').value;
+        const btn = document.getElementById('log-submit-btn');
+
+        const fd = new FormData();
+        fd.append('note', document.getElementById('log-note').value);
+        const imgInput = document.getElementById('log-image');
+        if (imgInput.files[0]) fd.append('image', imgInput.files[0]);
+
+        btn.disabled = true;
+        btn.textContent = 'Posting...';
+
+        try {
+            const resp = await fetch(`/urban/space/plan/${planId}/log`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: fd
+            });
+
+            if (!resp.ok) throw new Error('Failed to post update');
+
+            closeLogModal();
+            loadLogs(planId);
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Post to Timeline';
+        }
+    }
+
+    async function loadLogs(planId) {
+        const token = localStorage.getItem('token');
+        const container = document.querySelector(`#timeline-${planId} .timeline-logs`);
+
+        try {
+            const resp = await fetch(`/urban/space/plan/${planId}/logs`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) throw new Error('Failed to load logs');
+            const logs = await resp.json();
+
+            if (logs.length === 0) {
+                container.innerHTML = `<p class="text-[10px] text-gray-400 italic text-center py-4">No updates yet. Post your first photo!</p>`;
+                return;
+            }
+
+            container.innerHTML = logs.map(log => `
+                <div class="relative pl-6 border-l-2 border-green-100">
+                    <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-green-500"></div>
+                    <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                        <p class="text-[10px] text-gray-400 mb-1">${new Date(log.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                        <p class="text-xs text-gray-700 mb-2">${log.note}</p>
+                        ${log.image_url ? `<img src="${log.image_url}" class="w-full rounded-lg border border-gray-100 mt-2">` : ''}
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function loadMandiPrices() {
+        const token = localStorage.getItem('token');
+        const container = document.getElementById('mandi-prices');
+
+        try {
+            const resp = await fetch('/urban/space/market/prices', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) throw new Error('Failed to fetch prices');
+            const prices = await resp.json();
+
+            if (prices.length === 0) return;
+
+            container.innerHTML = prices.map(p => `
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col items-center">
+                    <p class="text-xs font-bold text-gray-500 mb-1">${p.crop_name}</p>
+                    <p class="text-xl font-bold text-green-700">₹${p.price_per_kg}/kg</p>
+                    <div class="flex items-center gap-1 mt-1">
+                        <span class="text-[10px] text-gray-400">${p.trend === 'rising' ? '📈' : (p.trend === 'falling' ? '📉' : '➡️')}</span>
+                        <span class="text-[10px] text-gray-400">${p.market_name}</span>
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function toggleResults(spaceId) {
+        const container = document.getElementById(`results-${spaceId}`);
+        if (container) container.classList.toggle('hidden');
+    }
+
+    function openScanModal() {
+        const modal = document.getElementById('scan-modal');
+        const content = document.getElementById('scan-modal-content');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeScanModal() {
+        const modal = document.getElementById('scan-modal');
+        const content = document.getElementById('scan-modal-content');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            resetScan();
+        }, 300);
+    }
+
+    function resetScan() {
+        document.getElementById('scan-input').classList.remove('hidden');
+        document.getElementById('scan-result').classList.add('hidden');
+        document.getElementById('scan-loading').classList.add('hidden');
+        document.getElementById('file-input').value = '';
+    }
+
+    async function performScan(input) {
+        if (!input.files || !input.files[0]) return;
+        const token = localStorage.getItem('token');
+
+        document.getElementById('scan-input').classList.add('hidden');
+        document.getElementById('scan-loading').classList.remove('hidden');
+
+        const fd = new FormData();
+        fd.append('image', input.files[0]);
+
+        try {
+            const resp = await fetch('/urban/space/scan/disease', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: fd
+            });
+
+            if (!resp.ok) throw new Error('Scan failed');
+            const data = await resp.json();
+
+            document.getElementById('scan-loading').classList.add('hidden');
+            document.getElementById('scan-result').classList.remove('hidden');
+
+            document.getElementById('result-img').innerHTML = `<img src="${data.image_url}" class="w-full h-full object-cover">`;
+            document.getElementById('res-species').textContent = data.species;
+            document.getElementById('res-status').textContent = data.status;
+
+            const statusBox = document.getElementById('res-status-box');
+            const statusLabel = document.getElementById('res-status-label');
+            if (data.is_unhealthy) {
+                statusBox.className = 'p-3 rounded-lg border border-red-100 bg-red-50';
+                statusLabel.className = 'text-[10px] uppercase font-bold text-red-500';
+                document.getElementById('res-status').className = 'font-bold text-red-900';
+            } else {
+                statusBox.className = 'p-3 rounded-lg border border-green-100 bg-green-50';
+                statusLabel.className = 'text-[10px] uppercase font-bold text-green-500';
+                document.getElementById('res-status').className = 'font-bold text-green-900';
+            }
+
+        } catch (err) {
+            alert(err.message);
+            resetScan();
+        }
+    }
+
+    // --- Urban AI Chat ---
+    let chatHistory = [];
+
+    function toggleChat() {
+        const win = document.getElementById('chat-window');
+        if (win.classList.contains('hidden')) {
+            win.classList.remove('hidden');
+            setTimeout(() => {
+                win.classList.remove('scale-95', 'opacity-0');
+                win.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            win.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => win.classList.add('hidden'), 300);
+        }
+    }
+
+    async function sendChatMessage(e) {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        input.value = '';
+        addMessageToUI('user', text);
+
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await fetch('/urban/space/chat', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: text, history: chatHistory })
+            });
+
+            if (!resp.ok) throw new Error('Chat failed');
+            const data = await resp.json();
+
+            addMessageToUI('bot', data.response);
+            chatHistory.push({ role: "user", parts: [text] });
+            chatHistory.push({ role: "model", parts: [data.response] });
+
+        } catch (err) {
+            addMessageToUI('bot', "Sorry, I'm having trouble thinking right now. Please try again.");
+            console.error(err);
+        }
+    }
+
+    function addMessageToUI(role, text) {
+        const container = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        if (role === 'user') {
+            div.className = 'bg-green-100 text-green-900 p-3 rounded-lg text-sm shadow-sm max-w-[85%] ml-auto';
+        } else {
+            div.className = 'bg-white text-gray-800 p-3 rounded-lg border border-gray-200 text-sm shadow-sm max-w-[85%]';
+        }
+        div.textContent = text;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function init() {
+        loadSpaces();
+        loadMandiPrices();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+{% endblock %}

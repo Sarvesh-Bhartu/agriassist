@@ -1,0 +1,22 @@
+{
+  "name": "agriassist-blockchain",
+  "version": "1.0.0",
+  "description": "AgriAssist Farm Verification Registry — Polygon Amoy",
+  "main": "server.js",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "deploy": "npx hardhat run scripts/deploy.js --network amoy",
+    "start": "node server.js",
+    "test": "npx hardhat test"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.1",
+    "express": "^4.18.3"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.2"
+  }
+}

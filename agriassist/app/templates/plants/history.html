@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Scan History - Agricultural Assistant{% endblock %}
+
+{% block extra_css %}
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">Scan History</h1>
+        <a href="/plants/scanner" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium">
+            + New Scan
+        </a>
+    </div>
+
+    <div id="history-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Populated by JS -->
+        <div class="col-span-full text-center py-8">
+            <div class="spinner mx-auto mb-4"></div>
+            <p class="text-gray-500">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Destroy Action Modal -->
+    <div id="destroyModal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-xl font-bold text-gray-900">Report Destruction</h3>
+                <button onclick="closeDestroyModal()" class="text-gray-400 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-gray-600 mb-4">You are about to report the destruction of:</p>
+                <div class="bg-red-50 p-4 rounded-lg border border-red-100">
+                    <p class="font-bold text-red-800 text-lg mb-2" id="modalSpeciesName">Species Name</p>
+
+                    <div id="modalImageContainer"
+                        class="hidden mb-3 h-32 w-full rounded-lg overflow-hidden border border-red-200 bg-gray-100">
+                        <img id="modalPlantImage" src="" class="w-full h-full object-cover" alt="Plant Image">
+                    </div>
+
+                    <div class="text-sm text-gray-700 flex items-center space-x-2">
+                        <span class="text-lg">📍</span>
+                        <span id="modalLocation">Loading...</span>
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-gray-500 italic">By confirming, you will be awarded 25 bonus XP points.</p>
+            </div>
+
+            <div class="flex space-x-3 justify-end">
+                <button onclick="closeDestroyModal()"
+                    class="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+                    Cancel
+                </button>
+                <button id="confirmDestroyBtn"
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center">
+                    Confirm Destruction
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    requireAuth();
+
+    async function loadHistory() {
+        try {
+            const response = await apiFetch('/api/plants/history');
+            const data = await response.json();
+
+            const container = document.getElementById('history-container');
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-lg shadow">
+                        <p class="text-xl text-gray-500 mb-4">No plants scanned yet.</p>
+                        <a href="/plants/scanner" class="text-green-600 font-semibold hover:underline">Scan a new plant now</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = data.map(item => `
+                <div class="bg-white rounded-lg shadow-md border overflow-hidden flex flex-col">
+                    ${item.image_path ? `
+                        <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                            <img src="/${item.image_path}" class="w-full h-full object-cover" />
+                        </div>
+                    ` : '<div class="h-48 bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>'}
+                    <div class="p-4 flex-1 flex flex-col">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-xl text-gray-800">${item.common_name || item.species}</h3>
+                            ${item.is_invasive ?
+                    `<span class="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded">INVASIVE</span>` :
+                    `<span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">HEALTHY</span>`
+                }
+                        </div>
+                        <p class="text-sm text-gray-500 mb-4 italic">${item.species}</p>
+                        <p class="text-sm text-gray-500 mb-4">📍 Spotted: ${formatDate(item.detection_date)}</p>
+                        
+                        <div class="mt-auto pt-4 border-t flex justify-between items-center">
+                            <span class="text-sm font-semibold text-gray-600">Total Points: +${item.points_awarded || 0}</span>
+                            ${item.destroyed ?
+                    `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded border">DESTROYED</span>` :
+                    (item.is_invasive ? `<button onclick="openDestroyModal(this)" data-id="${item.id}" data-name="${item.common_name || item.species}" data-lat="${item.latitude || ''}" data-lng="${item.longitude || ''}" data-img="${(item.image_path || '').replace(/\\/g, '/')}" class="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded border border-red-200 hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 font-medium tracking-wide">ACTION REQUIRED</button>` : '')
+                }
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            document.getElementById('history-container').innerHTML = `
+                <div class="col-span-full text-center py-8 text-red-600">
+                    Failed to load history. Please try again later.
+                </div>
+            `;
+            showToast('Failed to load history', 'error');
+        }
+    }
+
+    // Modal State
+    let currentDestroyId = null;
+
+    function openDestroyModal(btn) {
+        const id = btn.dataset.id;
+        const speciesName = btn.dataset.name;
+        const latStr = btn.dataset.lat;
+        const lngStr = btn.dataset.lng;
+        const imagePath = btn.dataset.img;
+
+        currentDestroyId = id;
+
+        // UNHIDE MODAL FIRST: This is critical so Leaflet can calculate container dimensions
+        document.getElementById('destroyModal').classList.remove('hidden');
+
+        document.getElementById('modalSpeciesName').textContent = speciesName;
+
+        // Handle Image
+        const imgContainer = document.getElementById('modalImageContainer');
+        const imgEl = document.getElementById('modalPlantImage');
+        if (imagePath && imagePath !== 'null' && imagePath !== '') {
+            imgEl.src = '/' + imagePath;
+            imgContainer.classList.remove('hidden');
+        } else {
+            imgContainer.classList.add('hidden');
+            imgEl.src = '';
+        }
+
+        // Handle Map and Location Text
+        let locationText = "No GPS data captured";
+
+        if (latStr && lngStr && latStr !== 'null' && lngStr !== 'null') {
+            const lat = parseFloat(latStr);
+            const lng = parseFloat(lngStr);
+            locationText = `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
+        }
+        document.getElementById('modalLocation').textContent = locationText;
+    }
+
+    function closeDestroyModal() {
+        currentDestroyId = null;
+        document.getElementById('destroyModal').classList.add('hidden');
+    }
+
+    document.getElementById('confirmDestroyBtn').addEventListener('click', async () => {
+        if (!currentDestroyId) return;
+
+        const btn = document.getElementById('confirmDestroyBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<div class="spinner border-t-white h-4 w-4 mr-2"></div> Processing...';
+        btn.disabled = true;
+
+        try {
+            const response = await apiFetch(`/api/plants/${currentDestroyId}/mark-destroyed`, {
+                method: 'POST'
+            });
+
+            if (!response.ok) throw new Error('Failed to mark as destroyed');
+
+            const data = await response.json();
+            showToast(`Destruction reported successfully! You gained ${data.bonus_points} bonus points.`, 'success');
+
+            closeDestroyModal();
+            loadHistory(); // Reload to show the checkmark
+        } catch (error) {
+            showToast(error.message, 'error');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', loadHistory);
+</script>
+{% endblock %}

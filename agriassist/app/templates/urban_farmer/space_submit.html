@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Your Space - Urban Farmer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .canvas-container {
+        position: relative;
+        cursor: crosshair;
+        background-color: #000;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    .neo-yellow-btn {
+        background-color: #CCFF00;
+        color: #000;
+        font-weight: bold;
+    }
+    .neo-yellow-btn:hover {
+        background-color: #e6ff80;
+    }
+    .step-badge {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="bg-white rounded-xl shadow-2xl p-6 mb-8 border border-gray-100">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-2">🌿 Onboard Your Urban Oasis</h1>
+        <p class="text-gray-600 mb-8">Mark your planting areas precisely so Gemini can calculate your potential yield and carbon credits.</p>
+
+        <form id="space-form" class="space-y-8">
+            <!-- Step 1: Basic Info -->
+            <div class="space-y-4">
+                <div class="flex items-center space-x-3 mb-4">
+                    <span class="step-badge bg-green-600 text-white">1</span>
+                    <h2 class="text-xl font-bold">Space Basic Info</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Space Nickname</label>
+                        <input type="text" name="name" required placeholder="e.g. Sunny Balcony" 
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Type of Space</label>
+                        <select name="space_type" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+                            <option value="balcony">Balcony</option>
+                            <option value="terrace">Terrace / Rooftop</option>
+                            <option value="window_sill">Window Sill</option>
+                            <option value="indoor">Indoor (Hydroponics)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Upload Photos -->
+            <div class="space-y-4">
+                <div class="flex items-center space-x-3 mb-4">
+                    <span class="step-badge bg-green-600 text-white">2</span>
+                    <h2 class="text-xl font-bold">Upload Space Photos (Max 3)</h2>
+                </div>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center" id="upload-zone">
+                    <input type="file" id="image-input" multiple accept="image/*" class="hidden">
+                    <label for="image-input" class="cursor-pointer">
+                        <div class="text-gray-500">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <p class="mt-1 text-lg">Click to select photos</p>
+                            <p class="text-sm">Multiple angles help Gemini's 3D estimation</p>
+                        </div>
+                    </label>
+                </div>
+                <!-- Preview and Canvas Area -->
+                <div id="canvas-grid" class="grid grid-cols-1 gap-8 mt-6">
+                    <!-- Poly Canvases will be injected here -->
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-gray-200">
+                <button type="submit" id="submit-btn" disabled 
+                        class="w-full bg-gray-400 text-white font-bold py-4 rounded-lg shadow-lg cursor-not-allowed transition-all">
+                    Finalize & Analyze Space
+                </button>
+                <p id="error-msg" class="text-red-500 text-center mt-3 hidden"></p>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/urban_canvas.js"></script>
+<script>
+    const imageInput = document.getElementById('image-input');
+    const canvasGrid = document.getElementById('canvas-grid');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMsg = document.getElementById('error-msg');
+    
+    let canvasHelpers = [];
+    let selectedFiles = [];
+
+    imageInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files).slice(0, 3); // Max 3
+        if (files.length === 0) return;
+        
+        selectedFiles = files;
+        canvasGrid.innerHTML = '';
+        canvasHelpers = [];
+        
+        files.forEach((file, index) => {
+            const container = document.createElement('div');
+            container.className = 'space-y-2';
+            container.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700">Photo #${index + 1}</h3>
+                    <button type="button" onclick="canvasHelpers[${index}].reset()" class="text-xs text-red-500 hover:underline">Clear Polygon</button>
+                </div>
+                <p class="text-xs text-gray-500">Tap to mark corners. Right-click or 4th tap to close.</p>
+                <div class="canvas-container shadow-inner">
+                    <canvas id="canvas-${index}"></canvas>
+                </div>
+                <input type="hidden" id="poly-input-${index}" name="poly_data[]">
+            `;
+            canvasGrid.appendChild(container);
+            
+            const helper = new UrbanPolygonCanvas(`canvas-${index}`, `poly-input-${index}`);
+            const reader = new FileReader();
+            reader.onload = (re) => {
+                helper.loadImage(re.target.result);
+            };
+            reader.readAsDataURL(file);
+            canvasHelpers.push(helper);
+        });
+        
+        submitBtn.disabled = false;
+        submitBtn.className = "w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg shadow-lg transition-all";
+    });
+
+    document.getElementById('space-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Uploading & Analyzing...";
+        errorMsg.classList.add('hidden');
+
+        const formData = new FormData(e.target);
+        
+        // Collect Polygon Data
+        const polygons = canvasHelpers.map(h => h.points);
+        formData.set('polygons', JSON.stringify(polygons));
+        
+        // Append actual files
+        selectedFiles.forEach(file => {
+            formData.append('images', file);
+        });
+
+        try {
+            const response = await fetch('/urban/space/submit', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showNotification('Space submitted successfully! Analysis started.', 'success');
+                // Redirect to dashboard or detail page
+                setTimeout(() => window.location.href = '/urban/space/dashboard', 2000);
+            } else {
+                const err = await response.json();
+                throw new Error(err.detail || 'Upload failed');
+            }
+        } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Finalize & Analyze Space";
+        }
+    });
+
+    function showNotification(msg, type) {
+        if (window.showToast) {
+            window.showToast(msg, type);
+        } else {
+            alert(msg);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Agricultural Assistant Platform{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-r from-green-600 to-green-800 text-white">
+    <div class="container mx-auto px-4 py-20 text-center">
+        <h1 class="text-5xl font-bold mb-6">🌾 Agricultural Assistant Platform</h1>
+        <p class="text-2xl mb-8">AI-Powered Farming Assistant for Indian Farmers</p>
+        <p class="text-xl mb-12 max-w-3xl mx-auto">
+            Identify plants, get crop recommendations, map your farm, calculate carbon credits,
+            and compete with other farmers - all powered by Google Gemini AI
+        </p>
+        <div class="space-x-4">
+            <a href="/register"
+                class="bg-white text-green-700 px-8 py-4 rounded-lg text-lg font-bold hover:bg-gray-100 inline-block">
+                Get Started Free
+            </a>
+            <a href="/login"
+                class="bg-green-500 px-8 py-4 rounded-lg text-lg font-bold hover:bg-green-400 inline-block">
+                Login
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="container mx-auto px-4 py-16">
+    <h2 class="text-4xl font-bold text-center mb-12">Powerful Features</h2>
+
+    <div class="grid md:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="text-4xl mb-4">🌿</div>
+            <h3 class="text-2xl font-bold mb-3">Plant Identification</h3>
+            <p class="text-gray-600 mb-4">
+                Upload plant photos and get instant AI-powered identification.
+                Detect invasive species and get removal advice.
+            </p>
+            <span class="text-green-600 font-semibold">Earn 50-100 points</span>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="text-4xl mb-4">🌾</div>
+            <h3 class="text-2xl font-bold mb-3">Crop Recommendations</h3>
+            <p class="text-gray-600 mb-4">
+                Get personalized crop suggestions based on your soil, budget, and location.
+                AI-powered insights from successful farmers.
+            </p>
+            <span class="text-green-600 font-semibold">Smart AI Guidance</span>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="text-4xl mb-4">🗺️</div>
+            <h3 class="text-2xl font-bold mb-3">Farm Mapping</h3>
+            <p class="text-gray-600 mb-4">
+                Map your farm using GPS coordinates. Calculate exact area and
+                estimate carbon credit value.
+            </p>
+            <span class="text-green-600 font-semibold">Earn 100 points</span>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="text-4xl mb-4">🍃</div>
+            <h3 class="text-2xl font-bold mb-3">Carbon Credits</h3>
+            <p class="text-gray-600 mb-4">
+                Calculate your farm's carbon credit potential based on soil type and crops.
+                Convert green farming into extra income.
+            </p>
+            <span class="text-green-600 font-semibold">₹ Calculate Value</span>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="text-4xl mb-4">🔔</div>
+            <h3 class="text-2xl font-bold mb-3">Smart Alerts</h3>
+            <p class="text-gray-600 mb-4">
+                Get important notifications about pest outbreaks, disease clusters,
+                and farming advisories in your area.
+            </p>
+            <span class="text-green-600 font-semibold">Stay Informed</span>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="text-4xl mb-4">🏆</div>
+            <h3 class="text-2xl font-bold mb-3">Gamification</h3>
+            <p class="text-gray-600 mb-4">
+                Earn points, unlock badges, and compete on leaderboards.
+                Become a top farmer in your district!
+            </p>
+            <span class="text-green-600 font-semibold">Compete & Win</span>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works -->
+<div class="bg-gray-100 py-16">
+    <div class="container mx-auto px-4">
+        <h2 class="text-4xl font-bold text-center mb-12">How It Works</h2>
+
+        <div class="max-w-4xl mx-auto space-y-8">
+            <div class="flex items-start space-x-4">
+                <div
+                    class="bg-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0 text-xl font-bold">
+                    1
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold mb-2">Register Your Account</h3>
+                    <p class="text-gray-600">Sign up with your phone number and basic details. Get started in under 2
+                        minutes.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start space-x-4">
+                <div
+                    class="bg-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0 text-xl font-bold">
+                    2
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold mb-2">Map Your Farm</h3>
+                    <p class="text-gray-600">Add your farm details and GPS coordinates. Calculate area and carbon
+                        credits automatically.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start space-x-4">
+                <div
+                    class="bg-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0 text-xl font-bold">
+                    3
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold mb-2">Use AI Features</h3>
+                    <p class="text-gray-600">Identify plants, get crop recommendations, and receive farming advice
+                        powered by Google Gemini AI.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start space-x-4">
+                <div
+                    class="bg-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0 text-xl font-bold">
+                    4
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold mb-2">Earn & Compete</h3>
+                    <p class="text-gray-600">Earn points for every action, unlock badges, and climb the leaderboard!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="bg-green-700 text-white py-16">
+    <div class="container mx-auto px-4 text-center">
+        <h2 class="text-4xl font-bold mb-6">Ready to Start Your Farming Journey?</h2>
+        <p class="text-xl mb-8">Join thousands of farmers using AI to improve their farming</p>
+        <a href="/register"
+            class="bg-white text-green-700 px-8 py-4 rounded-lg text-lg font-bold hover:bg-gray-100 inline-block">
+            Register Now - It's Free!
+        </a>
+    </div>
+</div>
+{% endblock %}

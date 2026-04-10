@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Urban Farmer Login{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-24 max-w-md">
+    <div class="bg-white rounded-xl shadow-xl p-8 border border-gray-100">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">🔐 Urban Farmer Login</h1>
+
+        <form id="login-form" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                <input type="text" name="username" required placeholder="9876543210"
+                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" name="password" required placeholder="******"
+                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+            </div>
+
+            <div>
+                <button type="submit" id="submit-btn"
+                    class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-lg shadow-lg transition-all">
+                    Login to Dashboard
+                </button>
+            </div>
+
+            <p id="error-msg" class="text-red-500 text-center text-sm hidden"></p>
+            <p class="text-center text-sm text-gray-500">
+                New to Urban Farming? <a href="/urban/auth/register"
+                    class="text-green-700 font-bold hover:underline">Register here</a>
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submit-btn');
+        const errorMsg = document.getElementById('error-msg');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Logging in...";
+        errorMsg.classList.add('hidden');
+
+        const formData = new FormData(e.target);
+
+        try {
+            const response = await fetch('/urban/auth/login', {
+                method: 'POST',
+                body: formData // OAuth2PasswordRequestForm expects form data
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('token', data.access_token);
+                localStorage.setItem('role', 'urban_farmer');
+                localStorage.setItem('user_id', data.sub);
+
+                showNotify('Login successful!', 'success');
+                window.location.href = '/urban/space/dashboard';
+            } else {
+                const err = await response.json();
+                throw new Error(err.detail || 'Login failed');
+            }
+        } catch (error) {
+            showNotify(error.message, 'error');
+            errorMsg.textContent = error.message;
+            errorMsg.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Login to Dashboard";
+        }
+    });
+
+    function showNotify(msg, type) {
+        if (window.showToast && typeof window.showToast === 'function') {
+            window.showToast(msg, type);
+        } else {
+            alert(msg);
+        }
+    }
+</script>
+{% endblock %}

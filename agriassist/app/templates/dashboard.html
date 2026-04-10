@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Agricultural Assistant{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Dashboard</h1>
+
+    <div id="dashboard-content">
+        <div class="flex items-center justify-center py-12">
+            <div class="spinner"></div>
+            <span class="ml-3 text-gray-600">Loading...</span>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    requireAuth();
+
+    // Load dashboard data
+    async function loadDashboard() {
+        try {
+            const response = await apiFetch('/api/dashboard/stats');
+            if (!response.ok) throw new Error('Failed to load dashboard');
+
+            const data = await response.json();
+            displayDashboard(data);
+        } catch (error) {
+            document.getElementById('dashboard-content').innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                <p class="text-red-600 font-semibold">${error.message}</p>
+                <button onclick="loadDashboard()" class="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                    Retry
+                </button>
+            </div>
+        `;
+        }
+    }
+
+    function displayDashboard(data) {
+        document.getElementById('dashboard-content').innerHTML = `
+        <!-- Header -->
+        <div class="mb-6 flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-gray-800">Welcome, ${data.user.name} ${data.user.level ? data.user.level.current_icon : '👋'}</h2>
+        </div>
+
+        <!-- Gamification XP Bar -->
+        ${data.user.level ? `
+        <div class="bg-white rounded-xl shadow-sm border border-green-100 p-6 mb-6">
+            <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+                <!-- Avatar Circle -->
+                <div class="w-24 h-24 rounded-full bg-green-50 border-4 border-green-200 flex items-center justify-center text-5xl shadow-inner shrink-0 leading-none">
+                    ${data.user.level.current_icon}
+                </div>
+                
+                <!-- Progress Info -->
+                <div class="flex-1 w-full">
+                    <div class="flex justify-between items-end mb-2">
+                        <div>
+                            <p class="text-sm font-bold text-gray-500 uppercase tracking-wide">Farming Level</p>
+                            <h3 class="text-2xl font-bold text-green-800">${data.user.level.current_level}</h3>
+                        </div>
+                        ${data.user.level.next_level ? `
+                        <div class="text-right">
+                            <p class="text-xs text-gray-500 font-semibold mb-1">Next: ${data.user.level.next_icon} ${data.user.level.next_level}</p>
+                            <p class="text-sm font-bold text-green-600">${data.user.level.current_points.toLocaleString()} / ${data.user.level.next_tier_points.toLocaleString()} XP</p>
+                        </div>
+                        ` : `
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-green-600">Master Farmer (Max Level)</p>
+                        </div>
+                        `}
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden shadow-inner">
+                        <div class="bg-gradient-to-r from-green-400 to-green-600 h-4 rounded-full transition-all duration-1000 ease-out" style="width: ${data.user.level.progress_percentage}%"></div>
+                    </div>
+                    
+                    ${data.user.level.next_level ? `
+                    <p class="text-xs font-semibold text-gray-500 text-right mt-1">${(data.user.level.points_to_next).toLocaleString()} XP needed for next level</p>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
+        <!-- User Stats Grid -->
+        <div class="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg p-6 mb-6">
+            <div class="flex items-center space-x-6">
+                <div>
+                    <p class="text-green-100">Total Points</p>
+                    <p class="text-3xl font-bold">${data.user.total_points.toLocaleString()}</p>
+                </div>
+                <div>
+                    <p class="text-green-100">Badges Earned</p>
+                    <p class="text-3xl font-bold">${data.user.badges.length}</p>
+                </div>
+                ${data.user.district ? `
+                <div>
+                    <p class="text-green-100">Location</p>
+                    <p class="text-lg font-semibold">${data.user.district}, ${data.user.state || ''}</p>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+
+        <!-- Quick Stats Grid -->
+        <div class="grid md:grid-cols-3 gap-6 mb-8">
+            <!-- Farms -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Your Farms</h3>
+                    <span class="text-3xl">🗺️</span>
+                </div>
+                <p class="text-3xl font-bold text-green-600">${data.farms.count}</p>
+                <p class="text-gray-600 mt-2">${data.farms.total_area_hectares.toFixed(2)} Hectares</p>
+                ${data.farms.total_carbon_value_inr > 0 ? `
+                    <p class="text-sm text-green-700 font-semibold mt-1">
+                        ₹${data.farms.total_carbon_value_inr.toLocaleString()} Est. Carbon Value
+                    </p>
+                ` : ''}
+                <a href="${data.farms.count > 0 ? '/farms' : '/farms/create'}" class="mt-4 inline-block text-green-600 hover:underline">
+                    ${data.farms.count > 0 ? 'View All Farms' : 'Add Your First Farm'}
+                </a>
+            </div>
+
+            <!-- Plants -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Plants Spotted</h3>
+                    <span class="text-3xl">🌿</span>
+                </div>
+                <p class="text-3xl font-bold text-green-600">${data.plants.total_detected}</p>
+                <div class="mt-2 space-y-1 text-sm">
+                    <p class="text-red-600">Invasive Species: ${data.plants.invasive_found}</p>
+                    <p class="text-green-600">Destruction Validated: ${data.plants.destroyed}</p>
+                </div>
+                <a href="/plants/scanner" class="mt-4 inline-block text-green-600 hover:underline">
+                    Scan New Plant
+                </a>
+            </div>
+
+            <!-- Crops -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Crop Advice</h3>
+                    <span class="text-3xl">🌾</span>
+                </div>
+                <p class="text-3xl font-bold text-green-600">${data.crops.total}</p>
+                <p class="text-gray-600 mt-2">Active Recommendations</p>
+                <a href="/recommendations" class="mt-4 inline-block text-green-600 hover:underline">
+                    Get Expert Advice
+                </a>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h3 class="text-xl font-bold mb-4">Quick Actions</h3>
+            <div class="grid md:grid-cols-4 gap-4">
+                <a href="/plants/scanner" class="bg-green-50 hover:bg-green-100 p-4 rounded-lg text-center transition">
+                    <div class="text-3xl mb-2">📷</div>
+                    <p class="font-semibold text-green-700">Scan Plant</p>
+                </a>
+                <a href="/farms/create" class="bg-blue-50 hover:bg-blue-100 p-4 rounded-lg text-center transition">
+                    <div class="text-3xl mb-2">🗺️</div>
+                    <p class="font-semibold text-blue-700">Add Farm</p>
+                </a>
+                <a href="/recommendations" class="bg-purple-50 hover:bg-purple-100 p-4 rounded-lg text-center transition">
+                    <div class="text-3xl mb-2">💡</div>
+                    <p class="font-semibold text-purple-700">Get Advice</p>
+                </a>
+                <a href="/leaderboard" class="bg-yellow-50 hover:bg-yellow-100 p-4 rounded-lg text-center transition">
+                    <div class="text-3xl mb-2">🏆</div>
+                    <p class="font-semibold text-yellow-700">Leaderboard</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        ${data.recent_activity.length > 0 ? `
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-xl font-bold mb-4">Recent Flora Observations</h3>
+            <div class="space-y-3">
+                ${data.recent_activity.map(plant => `
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <div>
+                            <p class="font-semibold">${plant.common_name || plant.species}</p>
+                            <p class="text-sm text-gray-500">${formatDate(plant.date)}</p>
+                        </div>
+                        <div>
+                            ${plant.is_invasive ?
+                `<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold">Invasive</span>` :
+                `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">Safe</span>`
+            }
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <a href="/plants/history" class="mt-4 inline-block text-green-600 hover:underline">
+                View All Activity
+            </a>
+        </div>
+        ` : ''}
+    `;
+    }
+
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+
+{% endblock %}

@@ -1,0 +1,1324 @@
+{% extends "base.html" %}
+{% block title %}My Farms - AgriAssist{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<style>
+  body {
+    overflow: hidden
+  }
+
+  #farms-layout {
+    display: flex;
+    height: calc(100vh - 64px);
+    width: 100vw;
+    position: relative
+  }
+
+  /* ── PRIMARY SIDEBAR ── */
+  #sidebar {
+    width: 240px;
+    min-width: 240px;
+    background: #0f2518;
+    color: #e2f5e8;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    z-index: 1000;
+    transition: width .3s, min-width .3s;
+    scrollbar-width: thin;
+    scrollbar-color: #2d5a3d #0f2518
+  }
+
+  #sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    overflow: hidden
+  }
+
+  #sidebar::-webkit-scrollbar {
+    width: 3px
+  }
+
+  #sidebar::-webkit-scrollbar-thumb {
+    background: #2d5a3d;
+    border-radius: 3px
+  }
+
+  #sb-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 240px;
+    z-index: 1100;
+    width: 20px;
+    height: 48px;
+    background: #1a3d28;
+    border: none;
+    border-radius: 0 6px 6px 0;
+    color: #6ee097;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: left .3s, background .2s;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, .3)
+  }
+
+  #sb-toggle:hover {
+    background: #2d5a3d
+  }
+
+  #sb-toggle.off {
+    left: 0
+  }
+
+  /* ── SECONDARY PANEL ── */
+  #sec-panel {
+    width: 0;
+    min-width: 0;
+    background: #132b1c;
+    border-left: 1px solid #1e4030;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: width .35s, min-width .35s;
+    z-index: 999
+  }
+
+  #sec-panel.open {
+    width: 340px;
+    min-width: 340px
+  }
+
+  /* Each sec-content pane: vertical column, scrollable */
+  .sec-content {
+    width: 340px;
+    padding: 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100%;
+    display: none;
+    /* hidden by default */
+    flex-direction: column;
+    /* forces vertical stacking when shown */
+    box-sizing: border-box;
+  }
+
+  .sec-content.active {
+    display: flex
+  }
+
+  /* JS toggles this class */
+
+  .sec-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #1e4030;
+    flex-shrink: 0
+  }
+
+  .sec-title {
+    font-size: .93rem;
+    font-weight: 700;
+    color: #6ee097
+  }
+
+  .sec-close {
+    background: none;
+    border: none;
+    color: #4a9c6a;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0
+  }
+
+  .sec-close:hover {
+    color: #e2f5e8;
+    background: #1e4030
+  }
+
+  /* ── SIDEBAR ATOMS ── */
+  .sb-header {
+    padding: 14px 12px 10px;
+    border-bottom: 1px solid #1e4030;
+    flex-shrink: 0
+  }
+
+  .sb-brand {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #6ee097
+  }
+
+  .aqi-badge {
+    margin-top: 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: .68rem;
+    font-weight: 600;
+    background: #1a3d28;
+    border: 1px solid #2d5a3d;
+    color: #a8e6be
+  }
+
+  .aqi-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pdot 2s infinite
+  }
+
+  @keyframes pdot {
+
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1)
+    }
+
+    50% {
+      opacity: .6;
+      transform: scale(.8)
+    }
+  }
+
+  .sb-sec {
+    padding: 9px 12px;
+    border-bottom: 1px solid #1e4030;
+    flex-shrink: 0
+  }
+
+  .sb-lbl {
+    font-size: .58rem;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #4a9c6a;
+    margin-bottom: 7px
+  }
+
+  .mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 7px 9px;
+    border-radius: 7px;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #b8d9c4;
+    transition: background .15s, color .15s;
+    margin-bottom: 3px;
+    text-align: left
+  }
+
+  .mode-btn:hover {
+    background: #1e4030;
+    color: #e2f5e8
+  }
+
+  .mode-btn.active {
+    background: #16a34a;
+    color: #fff
+  }
+
+  .farm-card {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 7px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .15s;
+    margin-bottom: 3px;
+    border: 1px solid transparent
+  }
+
+  .farm-card:hover,
+  .farm-card.sel {
+    background: #1e4030;
+    border-color: #2d5a3d
+  }
+
+  .farm-card.sel {
+    border-color: #16a34a
+  }
+
+  .fc-info {
+    flex: 1;
+    min-width: 0
+  }
+
+  .fc-name {
+    font-size: .76rem;
+    font-weight: 600;
+    color: #d4f0dc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+  }
+
+  .fc-badge {
+    font-size: .58rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px
+  }
+
+  .ba {
+    background: #14532d;
+    color: #4ade80
+  }
+
+  .bp {
+    background: #713f12;
+    color: #fbbf24
+  }
+
+  .br {
+    background: #450a0a;
+    color: #f87171
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 3px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background .15s;
+    margin-bottom: 1px
+  }
+
+  .toggle-row:hover {
+    background: #1e4030
+  }
+
+  .tl-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: .76rem;
+    color: #b8d9c4
+  }
+
+  .tgl {
+    position: relative;
+    width: 28px;
+    height: 15px;
+    flex-shrink: 0
+  }
+
+  .tgl input {
+    opacity: 0;
+    width: 0;
+    height: 0
+  }
+
+  .tgl-sl {
+    position: absolute;
+    inset: 0;
+    background: #2d5a3d;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background .2s
+  }
+
+  .tgl-sl:before {
+    content: '';
+    position: absolute;
+    height: 11px;
+    width: 11px;
+    left: 2px;
+    top: 2px;
+    background: #7cb88a;
+    border-radius: 50%;
+    transition: transform .2s
+  }
+
+  .tgl input:checked+.tgl-sl {
+    background: #16a34a
+  }
+
+  .tgl input:checked+.tgl-sl:before {
+    transform: translateX(13px);
+    background: #fff
+  }
+
+  .tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 7px 9px;
+    border-radius: 7px;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #2d5a3d;
+    background: #1a3d28;
+    color: #a8e6be;
+    transition: all .15s;
+    margin-bottom: 4px;
+    text-align: left
+  }
+
+  .tool-btn:hover {
+    background: #2d5a3d;
+    color: #e2f5e8;
+    transform: translateX(2px)
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px
+  }
+
+  .stat-box {
+    background: #1a3d28;
+    border: 1px solid #2d5a3d;
+    border-radius: 7px;
+    padding: 7px
+  }
+
+  .stat-v {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #6ee097
+  }
+
+  .stat-l {
+    font-size: .6rem;
+    color: #7cb88a;
+    margin-top: 1px
+  }
+
+  .add-farm-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    padding: 7px;
+    margin-top: 7px;
+    border-radius: 7px;
+    font-size: .76rem;
+    font-weight: 700;
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background .15s
+  }
+
+  .add-farm-link:hover {
+    background: #15803d
+  }
+
+  .empty-sb {
+    padding: 10px 2px;
+    text-align: center;
+    color: #4a9c6a;
+    font-size: .72rem
+  }
+
+  /* ── MAP ── */
+  #map-wrap {
+    flex: 1;
+    position: relative;
+    min-width: 0
+  }
+
+  #map {
+    width: 100%;
+    height: 100%
+  }
+
+  #map-loader {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 37, 24, .8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    color: #6ee097;
+    font-size: .95rem;
+    font-weight: 600;
+    gap: 10px;
+    pointer-events: none
+  }
+
+  .spin {
+    width: 26px;
+    height: 26px;
+    border: 3px solid #2d5a3d;
+    border-top-color: #16a34a;
+    border-radius: 50%;
+    animation: spin .8s linear infinite
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg)
+    }
+  }
+
+  /* dark leaflet popups */
+  .leaflet-popup-content-wrapper {
+    background: #0f2518 !important;
+    color: #e2f5e8 !important;
+    border: 1px solid #2d5a3d !important;
+    border-radius: 10px !important
+  }
+
+  .leaflet-popup-tip {
+    background: #0f2518 !important
+  }
+
+  .leaflet-popup-content {
+    color: #e2f5e8;
+    font-size: .82rem
+  }
+
+  .pp-name {
+    font-weight: 700;
+    color: #6ee097;
+    margin-bottom: 3px
+  }
+
+  .pp-det {
+    color: #a8e6be;
+    font-size: .75rem;
+    margin-bottom: 1px
+  }
+
+  .pp-link {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 10px;
+    background: #16a34a;
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 600;
+    border-radius: 5px;
+    text-decoration: none
+  }
+
+  .pp-link:hover {
+    background: #15803d
+  }
+
+  /* ── FORM STYLES inside sec panels ── */
+  .f-label {
+    font-size: .74rem;
+    color: #7cb88a;
+    display: block;
+    margin-bottom: 3px;
+    font-weight: 600;
+    flex-shrink: 0
+  }
+
+  .f-input,
+  .f-select {
+    width: 100%;
+    background: #1a3d28;
+    border: 1px solid #2d5a3d;
+    color: #e2f5e8;
+    padding: 7px 10px;
+    border-radius: 7px;
+    font-size: .82rem;
+    margin-bottom: 9px;
+    box-sizing: border-box
+  }
+
+  .f-input:focus,
+  .f-select:focus {
+    outline: none;
+    border-color: #16a34a
+  }
+
+  .f-input::placeholder {
+    color: #4a9c6a
+  }
+
+  .f-hint {
+    font-size: .67rem;
+    color: #4a9c6a;
+    margin-top: -6px;
+    margin-bottom: 8px;
+    flex-shrink: 0
+  }
+
+  .f-btn {
+    width: 100%;
+    padding: 9px;
+    border-radius: 8px;
+    background: #16a34a;
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-size: .85rem;
+    margin-top: 4px;
+    transition: background .15s;
+    flex-shrink: 0
+  }
+
+  .f-btn:hover {
+    background: #15803d
+  }
+
+  .f-btn:disabled {
+    background: #2d5a3d;
+    cursor: not-allowed
+  }
+
+  /* scanner */
+  .cam-area {
+    border: 2px dashed #2d5a3d;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s;
+    margin-bottom: 9px;
+    flex-shrink: 0
+  }
+
+  .cam-area:hover {
+    border-color: #16a34a
+  }
+
+  .cam-area img {
+    display: none;
+    max-height: 150px;
+    border-radius: 8px;
+    margin: 0 auto
+  }
+
+  .cam-area img.visible {
+    display: block
+  }
+
+  .cam-placeholder {
+    color: #4a9c6a;
+    font-size: .8rem
+  }
+
+  /* two camera buttons in a row — the only horizontal flex inside panels */
+  .cam-btns {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 9px;
+    flex-shrink: 0
+  }
+
+  .cam-btns .tool-btn {
+    flex: 1;
+    justify-content: center;
+    transform: none
+  }
+
+  .scan-result {
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: .78rem;
+    flex-shrink: 0
+  }
+
+  .scan-result.threat {
+    background: #450a0a;
+    border: 1px solid #7f1d1d
+  }
+
+  .scan-result.safe {
+    background: #14532d;
+    border: 1px solid #166534
+  }
+
+  /* voice */
+  .voice-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    background: #1a3d28;
+    border: 1px solid #2d5a3d;
+    cursor: pointer;
+    margin-bottom: 6px;
+    font-size: .8rem;
+    color: #b8d9c4;
+    transition: background .15s;
+    flex-shrink: 0
+  }
+
+  .voice-action:hover {
+    background: #2d5a3d;
+    color: #e2f5e8
+  }
+
+  .voice-call-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-size: .85rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: background .15s;
+    flex-shrink: 0
+  }
+
+  .voice-call-btn:hover {
+    background: #1d4ed8
+  }
+
+  /* advisor result */
+  #adv-result {
+    margin-top: 10px;
+    padding: 9px;
+    background: #1a3d28;
+    border: 1px solid #2d5a3d;
+    border-radius: 8px;
+    font-size: .76rem;
+    line-height: 1.6;
+    color: #b8d9c4;
+    display: none;
+    max-height: 200px;
+    overflow-y: auto;
+    flex-shrink: 0
+  }
+
+  #adv-result.show {
+    display: block
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="farms-layout">
+
+  <!-- PRIMARY SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand"><span>🌾</span> AgriAssist</div>
+      <div class="aqi-badge">
+        <div class="aqi-dot" id="aqi-dot"></div><span id="aqi-txt">AQI — locating…</span>
+      </div>
+    </div>
+
+    <div class="sb-sec">
+      <div class="sb-lbl">Mode</div>
+      <button class="mode-btn active" id="btn-explore" onclick="setMode('explore')">🔍 Explore</button>
+      <button class="mode-btn" id="btn-addfarm" onclick="openPanel('add-farm')">➕ Add Farm</button>
+    </div>
+
+    <div class="sb-sec">
+      <div class="sb-lbl">My Farms</div>
+      <div id="sb-farm-list">
+        <div class="empty-sb">Loading…</div>
+      </div>
+      <button class="add-farm-link" onclick="openPanel('add-farm')">+ Add New Farm</button>
+    </div>
+
+    <div class="sb-sec">
+      <div class="sb-lbl">Data Layers</div>
+      <div class="toggle-row">
+        <div class="tl-label"><span>🟩</span> Farm Boundaries</div>
+        <label class="tgl"><input type="checkbox" id="tgl-farms" checked
+            onchange="toggleLayer('farms',this.checked)"><span class="tgl-sl"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tl-label"><span>🌿</span> Plant Detections</div>
+        <label class="tgl"><input type="checkbox" id="tgl-plants" checked
+            onchange="toggleLayer('plants',this.checked)"><span class="tgl-sl"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tl-label"><span>🌬️</span> Air Quality</div>
+        <label class="tgl"><input type="checkbox" id="tgl-aqi" onchange="toggleLayer('aqi',this.checked)"><span
+            class="tgl-sl"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="tl-label"><span>📡</span> Alert Zones 5km</div>
+        <label class="tgl"><input type="checkbox" id="tgl-zones" onchange="toggleLayer('zones',this.checked)"><span
+            class="tgl-sl"></span></label>
+      </div>
+    </div>
+
+    <div class="sb-sec">
+      <div class="sb-lbl">AI Tools</div>
+      <button class="tool-btn" onclick="openPanel('scanner')">🔬 Plant Scanner</button>
+      <button class="tool-btn" onclick="openPanel('advisor')">🧠 AI Crop Advisor</button>
+      <button class="tool-btn" onclick="openPanel('voice')">📞 Voice Assistant</button>
+    </div>
+
+    <div class="sb-sec" style="border:none">
+      <div class="sb-lbl">Farm Stats</div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-v" id="st-total">—</div>
+          <div class="stat-l">Total Farms</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-v" id="st-ok">—</div>
+          <div class="stat-l">Approved</div>
+        </div>
+        <div class="stat-box" style="grid-column:span 2">
+          <div class="stat-v" id="st-carbon">—</div>
+          <div class="stat-l">Est. Carbon Value</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- SIDEBAR TOGGLE -->
+  <button id="sb-toggle" onclick="toggleSidebar()">◀</button>
+
+  <!-- SECONDARY PANEL -->
+  <div id="sec-panel">
+
+    <!-- ADD FARM -->
+    <div class="sec-content" id="sp-add-farm">
+      <div class="sec-header">
+        <span class="sec-title">➕ Add New Farm</span>
+        <button class="sec-close" onclick="closePanel()">✕</button>
+      </div>
+      <label class="f-label">Farm Name *</label>
+      <input class="f-input" id="af-name" placeholder="e.g. My Rice Field">
+      <label class="f-label">Draw Farm Boundary on Map</label>
+      <p class="f-hint">Use the pentagon icon on the map to draw your boundary →</p>
+      <div id="af-coords-display" style="font-size:.7rem;color:#4a9c6a;margin-bottom:8px;min-height:16px"></div>
+      <label class="f-label">Soil Type</label>
+      <select class="f-select" id="af-soil">
+        <option value="">Select…</option>
+        <option value="Alluvial">Alluvial (Loamy)</option>
+        <option value="Black">Black (Clayey)</option>
+        <option value="Red">Red (Sandy/Loamy)</option>
+        <option value="Laterite">Laterite</option>
+        <option value="Desert">Desert (Sandy)</option>
+      </select>
+      <label class="f-label">Water Source</label>
+      <select class="f-select" id="af-water">
+        <option value="">Select…</option>
+        <option value="Well">Well</option>
+        <option value="Canal">Canal</option>
+        <option value="Rainfed">Rainfed</option>
+        <option value="River">River</option>
+        <option value="Borewell">Borewell</option>
+      </select>
+      <label class="f-label">Irrigation Type</label>
+      <select class="f-select" id="af-irr">
+        <option value="">Select…</option>
+        <option value="Flood">Flood</option>
+        <option value="Drip">Drip</option>
+        <option value="Sprinkler">Sprinkler</option>
+        <option value="Rainfed">Natural/Rainfed</option>
+      </select>
+      <label class="f-label">Land Document (PDF/JPG/PNG) *</label>
+      <input type="file" id="af-doc" accept=".pdf,.jpg,.jpeg,.png" class="f-input" style="padding:5px">
+      <button class="f-btn" id="af-submit" onclick="submitFarm()">📤 Submit for Approval</button>
+    </div>
+
+    <!-- PLANT SCANNER -->
+    <div class="sec-content" id="sp-scanner">
+      <div class="sec-header">
+        <span class="sec-title">🔬 Plant Scanner</span>
+        <button class="sec-close" onclick="closePanel()">✕</button>
+      </div>
+      <div class="cam-area" onclick="document.getElementById('sc-file').click()">
+        <img id="sc-preview" alt="Preview" />
+        <div class="cam-placeholder" id="cam-ph">
+          <div style="font-size:2rem;margin-bottom:6px">📷</div>
+          <div>Tap to upload or take photo</div>
+          <div style="font-size:.65rem;margin-top:3px;color:#4a9c6a">Max 10MB</div>
+        </div>
+      </div>
+      <input type="file" id="sc-file" accept="image/*" style="display:none" onchange="previewPlant(this)">
+      <input type="file" id="sc-camera" accept="image/*" capture="environment" style="display:none"
+        onchange="previewPlant(this)">
+      <div class="cam-btns">
+        <button class="tool-btn" onclick="document.getElementById('sc-camera').click()">📸 Camera</button>
+        <button class="tool-btn" onclick="document.getElementById('sc-file').click()">📁 Gallery</button>
+      </div>
+      <div style="font-size:.7rem;color:#4a9c6a;margin-bottom:9px" id="sc-gps">📍 GPS: detecting…</div>
+      <button class="f-btn" id="sc-btn" onclick="runScan()">🔍 Identify Plant</button>
+      <div id="sc-loading" style="display:none;text-align:center;padding:16px;color:#6ee097;font-size:.82rem">
+        <div class="spin" style="margin:0 auto 8px"></div>Analyzing with AI…
+      </div>
+      <div id="sc-result" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <!-- AI CROP ADVISOR -->
+    <div class="sec-content" id="sp-advisor">
+      <div class="sec-header">
+        <span class="sec-title">🧠 AI Crop Advisor</span>
+        <button class="sec-close" onclick="closePanel()">✕</button>
+      </div>
+      <label class="f-label">Farm (Approved only)</label>
+      <select class="f-select" id="adv-farm">
+        <option value="">Loading…</option>
+      </select>
+      <label class="f-label">Season</label>
+      <select class="f-select" id="adv-season">
+        <option value="kharif">Kharif (Jun–Oct)</option>
+        <option value="rabi">Rabi (Nov–Mar)</option>
+        <option value="zaid">Zaid (Mar–Jun)</option>
+      </select>
+      <label class="f-label">Budget (₹)</label>
+      <input type="number" class="f-input" id="adv-budget" value="50000" min="1000">
+      <button class="f-btn" id="adv-btn" onclick="runAdvisor()">Get Recommendation</button>
+      <div id="adv-result"></div>
+    </div>
+
+    <!-- VOICE ASSISTANT -->
+    <div class="sec-content" id="sp-voice">
+      <div class="sec-header">
+        <span class="sec-title">📞 Voice Assistant</span>
+        <button class="sec-close" onclick="closePanel()">✕</button>
+      </div>
+      <p style="font-size:.76rem;color:#7cb88a;margin-bottom:12px">AI voice bot speaks Hindi — crop advice, market
+        prices & weather.</p>
+      <button class="voice-call-btn" onclick="window.location.href='/dashboard'">📞 Open Voice Assistant</button>
+      <div class="sb-lbl" style="margin-bottom:8px">Quick Actions</div>
+      <div class="voice-action" onclick="window.location.href='/dashboard'">🌾 Crop Advice</div>
+      <div class="voice-action" onclick="window.location.href='/dashboard'">📈 Market Prices</div>
+      <div class="voice-action" onclick="window.location.href='/dashboard'">🌤️ Weather Update</div>
+      <div class="voice-action" onclick="window.location.href='/dashboard'">🤖 Free AI Chat</div>
+      <p style="font-size:.65rem;color:#4a9c6a;margin-top:10px">Powered by Twilio + Google Gemini. Hindi voice
+        supported.</p>
+    </div>
+
+  </div><!-- /sec-panel -->
+
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map-loader">
+      <div class="spin"></div><span>Loading map…</span>
+    </div>
+    <div id="map"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script>
+  /* ================================================================
+     AgriAssist — /farms/  Map + Sidebar + Slide-in Panels
+     ================================================================ */
+  let map, drawControl, drawnItems;
+  let myFarms = [], afCoords = null;
+  let scLat = null, scLng = null;
+  let isSBOpen = true, curPanel = null;
+
+  const layers = {
+    farms: { on: true, arr: [] },
+    plants: { on: true, arr: [] },
+    aqi: { on: false, arr: [], data: null },
+    zones: { on: false, arr: [], data: [] },
+  };
+  const farmLayerMap = {};
+
+  // ── Init ──────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', initMap);
+
+  function initMap() {
+    // Default center: Panval, Ratnagiri, Maharashtra
+    const PANVAL = [18.5338, 73.1038];
+    map = L.map('map', { center: PANVAL, zoom: 13 });
+
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { attribution: '© OpenStreetMap', maxZoom: 19 });
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { attribution: '© Esri', maxZoom: 19 });
+    sat.addTo(map); // Satellite is default
+    L.control.layers({ 'Street': osm, 'Satellite': sat }, {}, { position: 'topright' }).addTo(map);
+
+    // Draw control for Add Farm mode
+    drawnItems = new L.FeatureGroup().addTo(map);
+    drawControl = new L.Control.Draw({
+      draw: { polygon: { allowIntersection: false, showArea: true }, marker: false, circle: false, circlemarker: false, rectangle: false, polyline: false },
+      edit: { featureGroup: drawnItems }
+    });
+
+    map.on(L.Draw.Event.CREATED, e => {
+      drawnItems.clearLayers();
+      drawnItems.addLayer(e.layer);
+      afCoords = e.layer.getLatLngs()[0].map(ll => ({ lat: ll.lat, lon: ll.lng }));
+      document.getElementById('af-coords-display').textContent = `✅ ${afCoords.length} boundary points captured`;
+    });
+    map.on(L.Draw.Event.DELETED, () => {
+      afCoords = null;
+      document.getElementById('af-coords-display').textContent = '';
+    });
+
+    // Auto-geolocate and zoom to user
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        map.setView([lat, lng], 14);
+        L.marker([lat, lng], { icon: blueIcon() })
+          .addTo(map).bindPopup('<b style="color:#6ee097">📍 You are here</b>').openPopup();
+        scLat = lat; scLng = lng;
+        document.getElementById('sc-gps').textContent = `📍 GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        fetchAQI(lat, lng);
+      }, () => {
+        // Fallback to Panval if geolocation denied/fails
+        map.setView(PANVAL, 13);
+        document.getElementById('sc-gps').textContent = '📍 GPS: unavailable (showing Panval)';
+        fetchAQI(PANVAL[0], PANVAL[1]);
+      }, { enableHighAccuracy: true, timeout: 6000 });
+    }
+
+    setTimeout(() => { const l = document.getElementById('map-loader'); if (l) l.style.display = 'none'; }, 1800);
+    loadData();
+  }
+
+  function blueIcon() {
+    return L.divIcon({ className: '', html: `<div style="width:13px;height:13px;background:#3b82f6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(59,130,246,.8)"></div>`, iconSize: [13, 13], iconAnchor: [6, 6] });
+  }
+
+  // ── Data ──────────────────────────────────────────────────────
+  async function loadData() {
+    const tok = localStorage.getItem('token');
+    if (!tok) { document.getElementById('sb-farm-list').innerHTML = '<div class="empty-sb">Please log in</div>'; return; }
+    const h = { 'Authorization': `Bearer ${tok}` };
+    try {
+      const [r1, r2, r3, r4] = await Promise.all([
+        fetch('/api/farms/', { headers: h }),
+        fetch('/api/farms/all', { headers: h }),
+        fetch('/api/plants/history?limit=50', { headers: h }),
+        fetch('/api/alerts/?limit=100', { headers: h }),
+      ]);
+      if (r1.ok) { myFarms = await r1.json(); renderSBFarms(myFarms); renderStats(myFarms); }
+      if (r2.ok) { drawFarmPolygons((await r2.json()).farms || []); }
+      if (r3.ok) { drawPlantMarkers(await r3.json()); }
+      if (r4.ok) { layers.zones.data = await r4.json(); if (layers.zones.on) drawZones(); }
+    } catch (e) { console.error(e); }
+    const l = document.getElementById('map-loader'); if (l) l.style.display = 'none';
+  }
+
+  function renderSBFarms(farms) {
+    const el = document.getElementById('sb-farm-list');
+    if (!farms.length) { el.innerHTML = '<div class="empty-sb">No farms yet.</div>'; return; }
+    const icons = { approved: '✅', pending: '⏳', rejected: '❌' };
+    const cls = { approved: 'ba', pending: 'bp', rejected: 'br' };
+    el.innerHTML = farms.map(f => {
+      const st = f.verification_status || 'pending';
+      return `<div class="farm-card" id="fc-${f.id}" onclick="flyTo('${f.id}')">
+      <span style="font-size:1.1rem">${icons[st] || '🌾'}</span>
+      <div class="fc-info">
+        <div class="fc-name" title="${f.name}">${f.name}</div>
+        <span class="fc-badge ${cls[st] || 'bp'}">${st.charAt(0).toUpperCase() + st.slice(1)}</span>
+      </div></div>`;
+    }).join('');
+    // Advisor dropdown
+    const sel = document.getElementById('adv-farm');
+    const approved = farms.filter(f => f.verification_status === 'approved');
+    sel.innerHTML = approved.length
+      ? '<option value="">Select farm…</option>' + approved.map(f => `<option value="${f.id}">${f.name}</option>`).join('')
+      : '<option value="">No approved farms yet</option>';
+  }
+
+  function renderStats(farms) {
+    document.getElementById('st-total').textContent = farms.length;
+    document.getElementById('st-ok').textContent = farms.filter(f => f.verification_status === 'approved').length;
+    const cv = farms.reduce((s, f) => s + (parseFloat(f.carbon_value_inr) || 0), 0);
+    document.getElementById('st-carbon').textContent = cv > 0 ? '₹' + cv.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '₹ — pending';
+  }
+
+  // ── Map Layers ────────────────────────────────────────────────
+  function drawFarmPolygons(farms) {
+    layers.farms.arr.forEach(l => map.removeLayer(l)); layers.farms.arr = [];
+    farms.forEach(f => {
+      if (!f.polygon_coordinates || f.polygon_coordinates.length < 3) return;
+      const lls = f.polygon_coordinates.map(c => [c.lat, c.lon]);
+      const own = f.is_own;
+      const p = L.polygon(lls, { color: own ? '#16a34a' : '#3b82f6', fillColor: own ? '#dcfce7' : '#dbeafe', fillOpacity: .3, weight: 2 });
+      const mine = myFarms.find(x => x.id === f.id);
+      p.bindPopup(`<div class="pp-name">${f.name}</div>
+      <div class="pp-det">${own ? '🌾 Your Farm' : '👥 Neighbour'}</div>
+      ${mine ? `<div class="pp-det">Area: ${mine.area_hectares ? mine.area_hectares + ' ha' : 'N/A'}</div><a class="pp-link" href="/farms/${f.id}">View Details →</a>` : ''}`);
+      if (layers.farms.on) p.addTo(map);
+      layers.farms.arr.push(p);
+      farmLayerMap[f.id] = p;
+    });
+  }
+
+  function drawPlantMarkers(dets) {
+    layers.plants.arr.forEach(l => map.removeLayer(l)); layers.plants.arr = [];
+    dets.forEach(d => {
+      if (!d.latitude || !d.longitude) return;
+      const inv = d.is_invasive, col = inv ? '#ef4444' : '#22c55e';
+      const icon = L.divIcon({ className: '', html: `<div style="width:20px;height:20px;background:${col};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;box-shadow:0 2px 5px rgba(0,0,0,.4)">${inv ? '🚨' : '🌿'}</div>`, iconSize: [20, 20], iconAnchor: [10, 10] });
+      const m = L.marker([d.latitude, d.longitude], { icon });
+      m.bindPopup(`<div class="pp-name" style="color:${inv ? '#f87171' : '#6ee097'}">${inv ? '🚨' : '🌿'} ${d.common_name || d.species}</div>
+      <div class="pp-det">Species: <i>${d.species}</i></div>
+      <div class="pp-det">Threat: ${d.threat_level || 'Low'} · Conf: ${Math.round((d.confidence || 0) * 100)}%</div>`);
+      if (layers.plants.on) m.addTo(map);
+      layers.plants.arr.push(m);
+    });
+  }
+
+  function renderAQILayer(aqi, lat, lng, col, lbl) {
+    layers.aqi.arr.forEach(l => map.removeLayer(l)); layers.aqi.arr = [];
+    const c = L.circle([lat, lng], { radius: 8000, color: col, fillColor: col, fillOpacity: .13, weight: 2 });
+    c.bindPopup(`<div class="pp-name" style="color:${col}">🌬️ Air Quality</div><div class="pp-det">AQI: ${aqi} — ${lbl}</div>`);
+    c.addTo(map); layers.aqi.arr.push(c);
+  }
+
+  function drawZones() {
+    layers.zones.arr.forEach(l => map.removeLayer(l)); layers.zones.arr = [];
+    const alerts = layers.zones.data || [];
+    alerts.forEach(a => {
+      if (!a.latitude || !a.longitude) return;
+      const r = (a.radius_km || 5) * 1000;
+      const c = L.circle([a.latitude, a.longitude], { 
+        radius: r, 
+        color: '#f97316', 
+        fillColor: '#f97316', 
+        fillOpacity: .2, 
+        weight: 3, 
+        dashArray: '5, 10' 
+      });
+      c.bindPopup(`<div class="pp-name" style="color:#fb923c">📡 Alert Zone</div>
+      <div class="pp-det"><b>${a.title}</b></div>
+      <div class="pp-det">${a.message}</div>
+      <div class="pp-det">Radius: ${a.radius_km || 5}km</div>`);
+      if (layers.zones.on) c.addTo(map);
+      layers.zones.arr.push(c);
+    });
+  }
+
+  function toggleLayer(name, on) {
+    layers[name].on = on;
+    if (name === 'aqi') {
+      if (on && layers.aqi.data) { const d = layers.aqi.data; renderAQILayer(d.aqi, d.lat, d.lng, d.col, d.lbl); }
+      else { layers.aqi.arr.forEach(l => map.removeLayer(l)); layers.aqi.arr = []; }
+      return;
+    }
+    if (name === 'zones') {
+      if (on && layers.zones.arr.length === 0) drawZones();
+      layers.zones.arr.forEach(l => on ? l.addTo(map) : map.removeLayer(l)); return;
+    }
+    layers[name].arr.forEach(l => on ? l.addTo(map) : map.removeLayer(l));
+  }
+
+  async function fetchAQI(lat, lng) {
+    try {
+      const r = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&forecast_days=1`);
+      const d = await r.json();
+      const v = (d?.hourly?.us_aqi || []).find(x => x !== null);
+      if (v != null) {
+        let col, lbl;
+        if (v <= 50) { col = '#22c55e'; lbl = 'Good'; }
+        else if (v <= 100) { col = '#eab308'; lbl = 'Moderate'; }
+        else if (v <= 150) { col = '#f97316'; lbl = 'Unhealthy*'; }
+        else if (v <= 200) { col = '#ef4444'; lbl = 'Unhealthy'; }
+        else { col = '#7c3aed'; lbl = 'Hazardous'; }
+        document.getElementById('aqi-dot').style.background = col;
+        document.getElementById('aqi-txt').textContent = `AQI ${v} — ${lbl}`;
+        layers.aqi.data = { aqi: v, lat, lng, col, lbl };
+        if (layers.aqi.on) renderAQILayer(v, lat, lng, col, lbl);
+      } else { document.getElementById('aqi-txt').textContent = 'AQI — unavailable'; }
+    } catch { document.getElementById('aqi-txt').textContent = 'AQI — unavailable'; }
+  }
+
+  // ── Sidebar toggle ────────────────────────────────────────────
+  function toggleSidebar() {
+    isSBOpen = !isSBOpen;
+    document.getElementById('sidebar').classList.toggle('collapsed', !isSBOpen);
+    const btn = document.getElementById('sb-toggle');
+    btn.classList.toggle('off', !isSBOpen);
+    btn.textContent = isSBOpen ? '◀' : '▶';
+    setTimeout(() => map.invalidateSize(), 320);
+  }
+
+  // ── Panels ────────────────────────────────────────────────────
+  const PANELS = ['add-farm', 'scanner', 'advisor', 'voice'];
+
+  function openPanel(name) {
+    PANELS.forEach(p => document.getElementById(`sp-${p}`).classList.remove('active'));
+    document.getElementById(`sp-${name}`).classList.add('active');
+    document.getElementById('sec-panel').classList.add('open');
+    curPanel = name;
+    // Mode buttons
+    document.getElementById('btn-explore').classList.toggle('active', name !== 'add-farm');
+    document.getElementById('btn-addfarm').classList.toggle('active', name === 'add-farm');
+    // Draw tool only when Add Farm is open
+    if (name === 'add-farm') { map.addControl(drawControl); }
+    else { try { map.removeControl(drawControl); } catch { } }
+    setTimeout(() => map.invalidateSize(), 360);
+  }
+
+  function closePanel() {
+    PANELS.forEach(p => document.getElementById(`sp-${p}`).classList.remove('active'));
+    document.getElementById('sec-panel').classList.remove('open');
+    curPanel = null;
+    try { map.removeControl(drawControl); } catch { }
+    document.getElementById('btn-explore').classList.add('active');
+    document.getElementById('btn-addfarm').classList.remove('active');
+    setTimeout(() => map.invalidateSize(), 360);
+  }
+
+  function setMode(m) { if (m === 'explore') closePanel(); }
+
+  function flyTo(farmId) {
+    document.querySelectorAll('.farm-card').forEach(c => c.classList.remove('sel'));
+    const card = document.getElementById(`fc-${farmId}`);
+    if (card) card.classList.add('sel');
+    const poly = farmLayerMap[farmId];
+    if (poly) { map.flyToBounds(poly.getBounds(), { padding: [60, 60], duration: 1.2 }); poly.openPopup(); }
+  }
+
+  // ── Add Farm ──────────────────────────────────────────────────
+  async function submitFarm() {
+    const name = document.getElementById('af-name').value.trim();
+    const doc = document.getElementById('af-doc').files[0];
+    if (!name) { showToast('Farm name is required', 'error'); return; }
+    if (!doc) { showToast('Land document is required', 'error'); return; }
+    const tok = localStorage.getItem('token');
+    if (!tok) { window.location.href = '/login'; return; }
+
+    const btn = document.getElementById('af-submit');
+    btn.disabled = true; btn.textContent = 'Creating farm…';
+
+    const body = { name };
+    const soil = document.getElementById('af-soil').value;
+    const water = document.getElementById('af-water').value;
+    const irr = document.getElementById('af-irr').value;
+    if (soil) body.soil_type = soil;
+    if (water) body.water_source = water;
+    if (irr) body.irrigation_type = irr;
+    if (afCoords && afCoords.length >= 3) body.polygon_coordinates = afCoords;
+
+    try {
+      const r = await fetch('/api/farms/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` }, body: JSON.stringify(body) });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Failed'); }
+      const farm = await r.json();
+      btn.textContent = 'Uploading document…';
+      const fd = new FormData(); fd.append('file', doc);
+      await fetch(`/api/farms/${farm.id}/document`, { method: 'POST', headers: { 'Authorization': `Bearer ${tok}` }, body: fd });
+      showToast('Farm created! Pending admin approval.', 'success');
+      closePanel();
+      setTimeout(() => { loadData(); drawnItems.clearLayers(); afCoords = null; document.getElementById('af-name').value = ''; document.getElementById('af-coords-display').textContent = ''; }, 800);
+    } catch (e) { showToast(e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = '📤 Submit for Approval'; }
+  }
+
+  // ── Plant Scanner ─────────────────────────────────────────────
+  function previewPlant(inp) {
+    const f = inp.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('sc-preview');
+      img.src = e.target.result; img.classList.add('visible');
+      document.getElementById('cam-ph').style.display = 'none';
+    };
+    reader.readAsDataURL(f);
+  }
+
+  async function runScan() {
+    const fi = document.getElementById('sc-file');
+    const fc = document.getElementById('sc-camera');
+    const file = fi.files[0] || fc.files[0];
+    if (!file) { showToast('Please select an image first', 'error'); return; }
+    const tok = localStorage.getItem('token');
+    if (!tok) { window.location.href = '/login'; return; }
+
+    document.getElementById('sc-btn').style.display = 'none';
+    document.getElementById('sc-loading').style.display = 'block';
+    document.getElementById('sc-result').style.display = 'none';
+
+    const fd = new FormData(); fd.append('image', file);
+    if (scLat) { fd.append('latitude', scLat); fd.append('longitude', scLng); }
+
+    try {
+      const r = await fetch('/api/plants/identify', { method: 'POST', headers: { 'Authorization': `Bearer ${tok}` }, body: fd });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Scan failed'); }
+      showScanResult(await r.json());
+    } catch (e) { showToast(e.message, 'error'); }
+    finally { document.getElementById('sc-btn').style.display = 'block'; document.getElementById('sc-loading').style.display = 'none'; }
+  }
+
+  function showScanResult(data) {
+    const det = data.detection, inv = det.is_invasive;
+    const res = document.getElementById('sc-result');
+    res.className = `scan-result ${inv ? 'threat' : 'safe'}`;
+    res.innerHTML = `
+    <div style="font-size:.88rem;font-weight:700;color:${inv ? '#f87171' : '#4ade80'};margin-bottom:6px">${inv ? '🚨 Invasive Species!' : '✅ Safe Plant'}</div>
+    <div style="font-size:.8rem;margin-bottom:2px"><b>Species:</b> ${det.species}</div>
+    <div style="font-size:.8rem;margin-bottom:2px"><b>Common:</b> ${det.common_name || '—'}</div>
+    <div style="font-size:.8rem;margin-bottom:6px"><b>Confidence:</b> ${Math.round((det.confidence || 0) * 100)}% · Threat: ${det.threat_level || 'Low'}</div>
+    ${inv ? `<div style="font-size:.74rem;color:#fca5a5;margin-bottom:8px">${det.removal_method || 'Please remove this plant carefully.'}</div>` : ''}
+    <div style="font-size:.74rem;color:${inv ? '#fbbf24' : '#86efac'}">🎉 +${data.gamification?.points_added || 0} pts earned!</div>
+    ${data.neighbors_alerted ? `<div style="font-size:.7rem;color:#93c5fd;margin-top:4px">📢 ${data.neighbors_alerted} neighbour farm(s) alerted!</div>` : ''}
+    <button class="f-btn" style="margin-top:8px" onclick="resetScanner()">Scan Another</button>`;
+    res.style.display = 'block';
+    loadData(); // refresh plant markers on map
+  }
+
+  function resetScanner() {
+    ['sc-file', 'sc-camera'].forEach(id => document.getElementById(id).value = '');
+    const img = document.getElementById('sc-preview'); img.src = ''; img.classList.remove('visible');
+    document.getElementById('cam-ph').style.display = 'block';
+    document.getElementById('sc-result').style.display = 'none';
+  }
+
+  // ── AI Advisor ────────────────────────────────────────────────
+  async function runAdvisor() {
+    const farmId = document.getElementById('adv-farm').value;
+    const season = document.getElementById('adv-season').value;
+    const budget = parseFloat(document.getElementById('adv-budget').value) || 50000;
+    const res = document.getElementById('adv-result');
+    const btn = document.getElementById('adv-btn');
+    if (!farmId) { res.style.display = 'block'; res.innerHTML = '⚠️ Select an approved farm.'; return; }
+    btn.disabled = true; btn.textContent = 'Analysing…';
+    res.style.display = 'block'; res.innerHTML = '<div style="color:#4a9c6a;font-size:.76rem">🤖 AI thinking…</div>';
+    try {
+      const tok = localStorage.getItem('token');
+      const r = await fetch(`/api/farms/${farmId}/advise`, { method: 'POST', headers: { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ season, budget }) });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Failed'); }
+      const d = await r.json();
+      const recs = d.recommendations || [];
+      res.innerHTML = recs.length
+        ? recs.map((r, i) => `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #2d5a3d"><div style="font-weight:700;color:#6ee097;font-size:.82rem">${i + 1}. ${r.crop_name}</div><div style="color:#b8d9c4;font-size:.74rem;margin-top:2px">${r.reason || r.description || ''}</div></div>`).join('')
+        : '<div style="color:#fbbf24;font-size:.76rem">No recommendations for this selection.</div>';
+    } catch (e) { res.innerHTML = `<span style="color:#f87171;font-size:.76rem">❌ ${e.message}</span>`; }
+    finally { btn.disabled = false; btn.textContent = 'Get Recommendation'; }
+  }
+</script>
+{% endblock %}

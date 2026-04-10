@@ -1,0 +1,11 @@
+# Blockchain Layer — Git Ignore
+node_modules/
+cache/
+artifacts/
+typechain-types/
+
+# Secrets — NEVER commit these
+.env
+
+# Deployment info (optional — you may want to version this)
+# config/deployment.json

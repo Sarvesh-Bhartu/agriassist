@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login — AgriAssist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #14532d 0%, #166534 40%, #15803d 100%);
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.18);
+        }
+        .input-field {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: white;
+            transition: all 0.2s;
+        }
+        .input-field::placeholder { color: rgba(255,255,255,0.5); }
+        .input-field:focus {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.6);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
+        }
+        .btn-login {
+            background: linear-gradient(90deg, #16a34a, #15803d);
+            transition: all 0.2s;
+        }
+        .btn-login:hover {
+            background: linear-gradient(90deg, #15803d, #14532d);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="glass rounded-2xl p-8 w-full max-w-md shadow-2xl">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="text-5xl mb-3">🌾</div>
+            <h1 class="text-3xl font-bold text-white">AgriAssist</h1>
+            <p class="text-green-200 mt-1 text-sm font-medium tracking-wider uppercase">Admin Portal</p>
+            <div class="h-px bg-gradient-to-r from-transparent via-green-400 to-transparent mt-4"></div>
+        </div>
+
+        <!-- Error message -->
+        <div id="error-msg" class="hidden bg-red-500 bg-opacity-20 border border-red-400 text-red-200 rounded-lg px-4 py-3 mb-5 text-sm"></div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="space-y-5">
+            <div>
+                <label class="block text-green-200 text-sm font-medium mb-2">Admin ID</label>
+                <input
+                    id="admin-id"
+                    type="text"
+                    placeholder="e.g. T12478"
+                    class="input-field w-full px-4 py-3 rounded-xl text-white"
+                    required
+                />
+            </div>
+            <div>
+                <label class="block text-green-200 text-sm font-medium mb-2">Password</label>
+                <input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    class="input-field w-full px-4 py-3 rounded-xl text-white"
+                    required
+                />
+            </div>
+
+            <button
+                type="submit"
+                id="submit-btn"
+                class="btn-login w-full py-3 rounded-xl text-white font-semibold text-base mt-2 flex items-center justify-center gap-2"
+            >
+                <span id="btn-text">🔐 Sign In</span>
+                <svg id="spinner" class="hidden w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="white" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="white" d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+            </button>
+        </form>
+
+        <p class="text-center text-green-300 text-xs mt-6">
+            🔒 Restricted Access — Authorized Personnel Only
+        </p>
+    </div>
+
+    <script>
+        // Redirect if already logged in as admin
+        if (localStorage.getItem('admin_token')) {
+            window.location.href = '/admin/dashboard';
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const adminId = document.getElementById('admin-id').value.trim();
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-msg');
+            const spinner = document.getElementById('spinner');
+            const btnText = document.getElementById('btn-text');
+            const submitBtn = document.getElementById('submit-btn');
+
+            errorDiv.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            btnText.textContent = 'Signing in...';
+            submitBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_id: adminId, password })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Login failed');
+                }
+
+                localStorage.setItem('admin_token', data.access_token);
+                localStorage.setItem('admin_name', data.name);
+                localStorage.setItem('admin_id', data.admin_id);
+
+                window.location.href = '/admin/dashboard';
+
+            } catch (err) {
+                errorDiv.textContent = '❌ ' + err.message;
+                errorDiv.classList.remove('hidden');
+            } finally {
+                spinner.classList.add('hidden');
+                btnText.textContent = '🔐 Sign In';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

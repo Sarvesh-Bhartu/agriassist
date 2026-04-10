@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboard - Agricultural Assistant{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6 text-center">Leaderboard</h1>
+
+    <div class="max-w-4xl mx-auto">
+        <div id="leaderboard-content">
+            <div class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-gray-600">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load leaderboard
+    async function loadLeaderboard() {
+        try {
+            const response = await fetch('/api/gamification/leaderboard');
+            if (!response.ok) throw new Error('Failed to load leaderboard');
+
+            const data = await response.json();
+
+            // Fetch user stats if logged in
+            let myStats = null;
+            let myName = null;
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const [statsRes, meRes] = await Promise.all([
+                        apiFetch('/api/gamification/my-stats'),
+                        apiFetch('/api/auth/me')
+                    ]);
+                    if (statsRes.ok && meRes.ok) {
+                        myStats = await statsRes.json();
+                        const me = await meRes.json();
+                        myName = me.name;
+                    }
+                } catch (e) {
+                    console.error("Failed to load user stats for leaderboard highlight:", e);
+                }
+            }
+
+            displayLeaderboard(data, myStats, myName);
+        } catch (error) {
+            document.getElementById('leaderboard-content').innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                <p class="text-red-600 font-semibold">${error.message}</p>
+            </div>
+        `;
+        }
+    }
+
+    function displayLeaderboard(leaderboard, myStats, myName) {
+        const currentUser = localStorage.getItem('token');
+
+        const isUserInTop50 = myName ? leaderboard.some(entry => entry.name === myName) : false;
+
+        document.getElementById('leaderboard-content').innerHTML = `
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            ${leaderboard.map((entry, index) => {
+            const isTopThree = entry.rank <= 3;
+            const isMe = entry.name === myName;
+            const rowClass = isMe ? 'bg-green-100 border-l-4 border-green-500 shadow-sm z-10 relative' : (isTopThree ? 'bg-yellow-50' : '');
+            const textHighlighter = isMe ? 'text-green-800' : '';
+            const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+            return `
+                    <div class="flex items-center justify-between p-4 border-b hover:bg-gray-50 ${rowClass}">
+                        <div class="flex items-center space-x-4 flex-1">
+                            <div class="text-2xl font-bold ${isTopThree ? 'text-yellow-600' : 'text-gray-600'} w-12 text-center">
+                                ${medals[entry.rank] || entry.rank}
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-bold text-lg ${textHighlighter}">${entry.name} ${isMe ? `<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full ml-2 align-middle">YOU</span>` : ''}</p>
+                                <p class="text-sm ${isMe ? 'text-green-700' : 'text-gray-600'}">${entry.district || 'Unknown'}</p>
+                                ${(entry.badges && entry.badges.length > 0) ? `
+                                    <div class="flex space-x-1 mt-1">
+                                        ${entry.badges_icons.map(icon => `<span class="text-lg">${icon}</span>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-2xl font-bold ${isMe ? 'text-green-800' : 'text-green-600'}">${entry.points.toLocaleString()}</p>
+                            <p class="text-sm ${isMe ? 'text-green-700' : 'text-gray-500'}">Points</p>
+                        </div>
+                    </div>
+                `;
+        }).join('')}
+        
+        ${(myStats && myName && !isUserInTop50) ? `
+            <div class="flex items-center justify-between p-4 border-t-4 border-dashed border-gray-300 bg-gray-50">
+                <div class="text-center w-full text-gray-400 py-1">...</div>
+            </div>
+            <div class="flex items-center justify-between p-4 border-t border-b bg-green-100 border-l-4 border-green-500 shadow-sm relative z-10">
+                <div class="flex items-center space-x-4 flex-1">
+                    <div class="text-xl font-bold text-gray-600 w-12 text-center">
+                        ${myStats.rank}
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-bold text-lg text-green-800">${myName} <span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full ml-2 align-middle">YOU</span></p>
+                        <p class="text-sm text-green-700">Global Community Standing</p>
+                        ${myStats.badges.length > 0 ? `
+                            <div class="flex space-x-1 mt-1">
+                                ${myStats.badges.map(b => `<span class="text-lg" title="${b.name}">${b.icon}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-bold text-green-800">${myStats.total_points.toLocaleString()}</p>
+                    <p class="text-sm text-green-700">Points</p>
+                </div>
+            </div>
+        ` : ''}
+        </div>
+        
+        ${currentUser ? `
+        <div class="mt-8 text-center">
+            <a href="/dashboard" class="text-green-600 hover:underline font-semibold">
+                ← Back to Dashboard
+            </a>
+        </div>
+        ` : ''}
+    `;
+    }
+
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadLeaderboard);
+</script>
+{% endblock %}

@@ -1,0 +1,149 @@
+Connecting to neo4j+s://30a4314a.databases.neo4j.io
+Farms:
+<Record fa.id='b8f7aaf9-82ce-4e4a-884e-1d85ca3520ac' fa.phone='8080825970' farm.id='028b5700-3879-4ae2-b5df-3e710bf60439' farm.location=POINT(72.96121788060637 19.216598902515514) farm.name="Avadhoot's Farm">
+<Record fa.id='217b52bf-501f-4b76-a879-bc81b05ca496' fa.phone='9321662823' farm.id='19e6beb3-bdfa-4877-91d0-abdc0d5c29d3' farm.location=POINT(72.96015572583383 19.213822946932677) farm.name='My Farm'>
+<Record fa.id='217b52bf-501f-4b76-a879-bc81b05ca496' fa.phone='9321662823' farm.id='b35fbb45-3a4e-473c-aec3-419064cdc8b3' farm.location=POINT(72.97214309801349 19.24295266130221) farm.name='New farm'>
+<Record fa.id='217b52bf-501f-4b76-a879-bc81b05ca496' fa.phone='9321662823' farm.id='edd46523-2b11-4b18-9a57-ea31a6551f76' farm.location=POINT(72.97214309801349 19.24295266130221) farm.name='New farm'>
+<Record fa.id='255e1f24-de60-4184-b36d-33c3ae19bd70' fa.phone='9137411362' farm.id='68e151e3-b268-4fc2-829d-6f6f99e5aa2d' farm.location=POINT(72.96317485255715 19.217700251006235) farm.name='1st farm'>
+<Record fa.id='ed9a4e76-30da-453a-bf68-3b861780444e' fa.phone='9321662823' farm.id='8b7eb699-6914-4eb5-ba14-3ce05de904bc' farm.location=POINT(72.96009671681533 19.21387513863606) farm.name="Sarvesh's Farm">
+<Record fa.id='ed9a4e76-30da-453a-bf68-3b861780444e' fa.phone='9321662823' farm.id='69d96da2-73e5-4fc8-829f-260232dce184' farm.location=None farm.name='My Farm'>
+<Record fa.id='bfd200b3-121e-4ab9-a201-909fbb0d64c7' fa.phone='9137411362' farm.id='6edee485-2b51-4dbf-8ed2-d187be21f483' farm.location=POINT(72.95827174173611 19.21301297096462) farm.name="Mane's farm">
+<Record fa.id='bfd200b3-121e-4ab9-a201-909fbb0d64c7' fa.phone='9137411362' farm.id='44032cd6-1129-4d74-8370-9e0ba96d064f' farm.location=POINT(73.17601776070661 18.892652443044994) farm.name="Sagar's Farm">
+<Record fa.id='bfd200b3-121e-4ab9-a201-909fbb0d64c7' fa.phone='9137411362' farm.id='44d4357b-9c1c-43d2-9961-c259692bed9f' farm.location=POINT(73.17237424824272 18.894434920863397) farm.name='Farm'>
+<Record fa.id='bfd200b3-121e-4ab9-a201-909fbb0d64c7' fa.phone='9137411362' farm.id='1e2e657c-41b0-47ad-8ad2-a62ec480fbf1' farm.location=POINT(73.17887592289482 18.89180383027403) farm.name='New Farm'>
+<Record fa.id='bfd200b3-121e-4ab9-a201-909fbb0d64c7' fa.phone='9137411362' farm.id='da7f8f19-855a-4e44-8b67-7f26b3debc19' farm.location=POINT(73.1694270371736 18.898405840018217) farm.name='Latest Farm'>
+<Record fa.id='d58fe94c-63b5-4683-8bce-ec2d9d4dda44' fa.phone='9856985632' farm.id='60875c87-9cd9-42d0-a546-e0a0de62b74b' farm.location=POINT(73.17617654833158 18.89223016749429) farm.name='Shyamfarm'>
+<Record fa.id='f70c20b1-8639-4b54-85d7-41b20eec7f9c' fa.phone='9123456789' farm.id='c2572bd9-d83a-4b09-8aab-91f616e9830b' farm.location=POINT(73.17451541162882 18.89120882457347) farm.name='New farm'>
+<Record fa.id='f70c20b1-8639-4b54-85d7-41b20eec7f9c' fa.phone='9123456789' farm.id='cff27ba3-b545-43ca-b634-c974fd67752c' farm.location=POINT(73.17735181753962 18.889887033055512) farm.name="Prathamesh's farm">
+<Record fa.id='ab53ef8b-b4c8-4a23-8008-efb0b4ba2cce' fa.phone='9852364758' farm.id='0c4b2008-a47c-4f9d-9002-15ee4031d852' farm.location=POINT(73.17666149152501 18.896777693339953) farm.name='Chran farms'>
+<Record fa.id='ab53ef8b-b4c8-4a23-8008-efb0b4ba2cce' fa.phone='9852364758' farm.id='9f1447a3-3edd-40d2-afe2-18ff9b36fe52' farm.location=POINT(73.17525172236857 18.894371985878166) farm.name='Chran farms east'>
+<Record fa.id='ab53ef8b-b4c8-4a23-8008-efb0b4ba2cce' fa.phone='9852364758' farm.id='d859d1ca-6990-482f-a015-061c66c10d01' farm.location=None farm.name='Chram thane'>
+
+Distances between all farms (in meters):
+<Record f1.name='My Farm' f2.name="Avadhoot's Farm" dist=328.5699700964238>
+<Record f1.name='My Farm' f2.name='1st farm' dist=535.7376535922083>
+<Record f1.name='My Farm' f2.name='New farm' dist=3478.8947476468657>
+<Record f1.name='My Farm' f2.name='New farm' dist=3478.8947476468657>
+<Record f1.name='My Farm' f2.name="Sarvesh's Farm" dist=8.498952649437442>
+<Record f1.name='My Farm' f2.name="Mane's farm" dist=217.6022848290808>
+<Record f1.name='My Farm' f2.name='Shyamfarm' dist=42405.864375631594>
+<Record f1.name='My Farm' f2.name='New farm' dist=42408.7098395997>
+<Record f1.name='My Farm' f2.name="Prathamesh's farm" dist=42692.451075573736>
+<Record f1.name='My Farm' f2.name='Chran farms' dist=42006.858408827786>
+<Record f1.name='My Farm' f2.name='Chran farms east' dist=42152.368969512456>
+<Record f1.name='My Farm' f2.name="Sagar's Farm" dist=42357.21053381487>
+<Record f1.name='My Farm' f2.name='Farm' dist=41984.6481230633>
+<Record f1.name='My Farm' f2.name='New Farm' dist=42598.72845501563>
+<Record f1.name='My Farm' f2.name='Latest Farm' dist=41445.25037159749>
+<Record f1.name="Avadhoot's Farm" f2.name='1st farm' dist=239.47409820880068>
+<Record f1.name="Avadhoot's Farm" f2.name='New farm' dist=3150.4280445802983>
+<Record f1.name="Avadhoot's Farm" f2.name='New farm' dist=3150.4280445802983>
+<Record f1.name="Avadhoot's Farm" f2.name="Sarvesh's Farm" dist=325.3072603631227>
+<Record f1.name="Avadhoot's Farm" f2.name="Mane's farm" dist=505.230145457636>
+<Record f1.name="Avadhoot's Farm" f2.name='Shyamfarm' dist=42607.52891296199>
+<Record f1.name="Avadhoot's Farm" f2.name='New farm' dist=42611.64506131319>
+<Record f1.name="Avadhoot's Farm" f2.name="Prathamesh's farm" dist=42894.323225014734>
+<Record f1.name="Avadhoot's Farm" f2.name='Chran farms' dist=42206.58913614899>
+<Record f1.name="Avadhoot's Farm" f2.name='Chran farms east' dist=42353.759336413175>
+<Record f1.name="Avadhoot's Farm" f2.name="Sagar's Farm" dist=42558.80847161743>
+<Record f1.name="Avadhoot's Farm" f2.name='Farm' dist=42187.592637809445>
+<Record f1.name="Avadhoot's Farm" f2.name='New Farm' dist=42799.08255034129>
+<Record f1.name="Avadhoot's Farm" f2.name='Latest Farm' dist=41648.37976684484>
+<Record f1.name='1st farm' f2.name='New farm' dist=2964.9234331439834>
+<Record f1.name='1st farm' f2.name='New farm' dist=2964.9234331439834>
+<Record f1.name='1st farm' f2.name="Sarvesh's Farm" dist=534.7978832523169>
+<Record f1.name='1st farm' f2.name="Mane's farm" dist=733.4177914024033>
+<Record f1.name='1st farm' f2.name='Shyamfarm' dist=42602.75692739538>
+<Record f1.name='1st farm' f2.name='New farm' dist=42608.045337140735>
+<Record f1.name='1st farm' f2.name="Prathamesh's farm" dist=42889.73310085292>
+<Record f1.name='1st farm' f2.name='Chran farms' dist=42200.05497781687>
+<Record f1.name='1st farm' f2.name='Chran farms east' dist=42348.74339652189>
+<Record f1.name='1st farm' f2.name="Sagar's Farm" dist=42553.97677033511>
+<Record f1.name='1st farm' f2.name='Farm' dist=42184.01558328909>
+<Record f1.name='1st farm' f2.name='New Farm' dist=42793.099943780566>
+<Record f1.name='1st farm' f2.name='Latest Farm' dist=41644.991985620225>
+<Record f1.name='New farm' f2.name='New farm' dist=0.0>
+<Record f1.name='New farm' f2.name="Sarvesh's Farm" dist=3475.7344958947065>
+<Record f1.name='New farm' f2.name="Mane's farm" dist=3637.8349712919116>
+<Record f1.name='New farm' f2.name='Shyamfarm' dist=44554.65871600404>
+<Record f1.name='New farm' f2.name='New farm' dist=44570.59809927363>
+<Record f1.name='New farm' f2.name="Prathamesh's farm" dist=44842.87690464996>
+<Record f1.name='New farm' f2.name='Chran farms' dist=44136.444656856715>
+<Record f1.name='New farm' f2.name='Chran farms east' dist=44298.79372041062>
+<Record f1.name='New farm' f2.name="Sagar's Farm" dist=44505.40546921428>
+<Record f1.name='New farm' f2.name='Farm' dist=44147.39194497969>
+<Record f1.name='New farm' f2.name='New Farm' dist=44733.666568684595>
+<Record f1.name='New farm' f2.name='Latest Farm' dist=43610.88569268365>
+<Record f1.name='New farm' f2.name="Sarvesh's Farm" dist=3475.7344958947065>
+<Record f1.name='New farm' f2.name="Mane's farm" dist=3637.8349712919116>
+<Record f1.name='New farm' f2.name='Shyamfarm' dist=44554.65871600404>
+<Record f1.name='New farm' f2.name='New farm' dist=44570.59809927363>
+<Record f1.name='New farm' f2.name="Prathamesh's farm" dist=44842.87690464996>
+<Record f1.name='New farm' f2.name='Chran farms' dist=44136.444656856715>
+<Record f1.name='New farm' f2.name='Chran farms east' dist=44298.79372041062>
+<Record f1.name='New farm' f2.name="Sagar's Farm" dist=44505.40546921428>
+<Record f1.name='New farm' f2.name='Farm' dist=44147.39194497969>
+<Record f1.name='New farm' f2.name='New Farm' dist=44733.666568684595>
+<Record f1.name='New farm' f2.name='Latest Farm' dist=43610.88569268365>
+<Record f1.name="Sarvesh's Farm" f2.name="Mane's farm" dist=214.50826579095843>
+<Record f1.name="Sarvesh's Farm" f2.name='Shyamfarm' dist=42414.095410754606>
+<Record f1.name="Sarvesh's Farm" f2.name='New farm' dist=42416.93036028424>
+<Record f1.name="Sarvesh's Farm" f2.name="Prathamesh's farm" dist=42700.68036537686>
+<Record f1.name="Sarvesh's Farm" f2.name='Chran farms' dist=42015.1050491115>
+<Record f1.name="Sarvesh's Farm" f2.name='Chran farms east' dist=42160.602280899446>
+<Record f1.name="Sarvesh's Farm" f2.name="Sagar's Farm" dist=42365.44212088321>
+<Record f1.name="Sarvesh's Farm" f2.name='Farm' dist=41992.868632758706>
+<Record f1.name="Sarvesh's Farm" f2.name='New Farm' dist=42606.970054666075>
+<Record f1.name="Sarvesh's Farm" f2.name='Latest Farm' dist=41453.46941852361>
+<Record f1.name="Mane's farm" f2.name='Shyamfarm' dist=42436.578834371554>
+<Record f1.name="Mane's farm" f2.name='New farm' dist=42438.3644316416>
+<Record f1.name="Mane's farm" f2.name="Prathamesh's farm" dist=42722.984629068815>
+<Record f1.name="Mane's farm" f2.name='Chran farms' dist=42039.187986725294>
+<Record f1.name="Mane's farm" f2.name='Chran farms east' dist=42183.318704637684>
+<Record f1.name="Mane's farm" f2.name="Sagar's Farm" dist=42387.98178859946>
+<Record f1.name="Mane's farm" f2.name='Farm' dist=42014.30709225298>
+<Record f1.name="Mane's farm" f2.name='New Farm' dist=42630.52537983704>
+<Record f1.name="Mane's farm" f2.name='Latest Farm' dist=41474.77054026346>
+<Record f1.name='Shyamfarm' f2.name='New farm' dist=208.65334290516586>
+<Record f1.name='Shyamfarm' f2.name="Prathamesh's farm" dist=288.71799873406263>
+<Record f1.name='Shyamfarm' f2.name='Chran farms' dist=508.79851740653515>
+<Record f1.name='Shyamfarm' f2.name='Chran farms east' dist=257.55526645562304>
+<Record f1.name='Shyamfarm' f2.name="Sagar's Farm" dist=49.89385197248441>
+<Record f1.name='Shyamfarm' f2.name='Farm' dist=469.691160686059>
+<Record f1.name='Shyamfarm' f2.name='New Farm' dist=288.2397671493547>
+<Record f1.name='Shyamfarm' f2.name='Latest Farm' dist=988.9115622518817>
+<Record f1.name='New farm' f2.name="Prathamesh's farm" dist=333.0114840554446>
+<Record f1.name='New farm' f2.name='Chran farms' dist=659.844344841011>
+<Record f1.name='New farm' f2.name='Chran farms east' dist=360.5602137500131>
+<Record f1.name='New farm' f2.name="Sagar's Farm" dist=225.5276314738877>
+<Record f1.name='New farm' f2.name='Farm' dist=424.0617766375739>
+<Record f1.name='New farm' f2.name='New Farm' dist=464.01445650119337>
+<Record f1.name='New farm' f2.name='Latest Farm' dist=963.8846607538431>
+<Record f1.name="Prathamesh's farm" f2.name='Chran farms' dist=770.5032043489973>
+<Record f1.name="Prathamesh's farm" f2.name='Chran farms east' dist=546.0654516911807>
+<Record f1.name="Prathamesh's farm" f2.name="Sagar's Farm" dist=338.3937397323302>
+<Record f1.name="Prathamesh's farm" f2.name='Farm' dist=728.7985714793339>
+<Record f1.name="Prathamesh's farm" f2.name='New Farm' dist=267.0163938298849>
+<Record f1.name="Prathamesh's farm" f2.name='Latest Farm' dist=1263.3016836850798>
+<Record f1.name='Chran farms' f2.name='Chran farms east' dist=306.2085478256306>
+<Record f1.name='Chran farms' f2.name="Sagar's Farm" dist=464.19881125887855>
+<Record f1.name='Chran farms' f2.name='Farm' dist=521.4388312166157>
+<Record f1.name='Chran farms' f2.name='New Farm' dist=600.8039648291652>
+<Record f1.name='Chran farms' f2.name='Latest Farm' dist=783.1879825937569>
+<Record f1.name='Chran farms east' f2.name="Sagar's Farm" dist=207.72694888182443>
+<Record f1.name='Chran farms east' f2.name='Farm' dist=303.1403164768836>
+<Record f1.name='Chran farms east' f2.name='New Farm' dist=476.8984919187752>
+<Record f1.name='Chran farms east' f2.name='Latest Farm' dist=760.2443995737433>
+<Record f1.name="Sagar's Farm" f2.name='Farm' dist=432.0067748385591>
+<Record f1.name="Sagar's Farm" f2.name='New Farm' dist=315.5038664443239>
+<Record f1.name="Sagar's Farm" f2.name='Latest Farm' dist=944.4707547906564>
+<Record f1.name='Farm' f2.name='New Farm' dist=744.7790085400518>
+<Record f1.name='Farm' f2.name='Latest Farm' dist=540.1375454245855>
+<Record f1.name='New Farm' f2.name='Latest Farm' dist=1237.1253764720666>
+
+All Plant Detections:
+<Record p.id='f0c51056-0665-4073-aec0-71bae55b4b26' p.species='Rosa spp.' p.location=POINT(72.96057665 19.21389447)>
+<Record p.id='88cc21f9-39d7-43dd-b61f-43d2cf9bfdb7' p.species='Annona muricata' p.location=POINT(72.961813 19.215783)>
+<Record p.id='f0c51056-0665-4073-aec0-71bae55b4b26' p.species='Rosa spp.' p.location=POINT(72.96057665 19.21389447)>
+<Record p.id='88cc21f9-39d7-43dd-b61f-43d2cf9bfdb7' p.species='Annona muricata' p.location=POINT(72.961813 19.215783)>
+<Record p.id='ae9e1c7b-630c-42d1-b63e-4f64b1446ff8' p.species='Cannabis sativa' p.location=POINT(72.961808 19.215722)>
