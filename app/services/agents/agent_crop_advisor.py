@@ -9,11 +9,8 @@ from app.models.user import Farmer
 from app.models.farm import Farm
 from app.models.crop import Crop, MarketPrice
 from app.models.gamification import GamificationEvent
-import google.generativeai as genai
-from app.core.config import settings
+from app.services.gemini_service import gemini_service
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 def _collect_advisory_data(db: Session) -> dict:
@@ -80,7 +77,7 @@ def _collect_advisory_data(db: Session) -> dict:
     }
 
 
-def run_crop_advisor_audit_agent(db: Session) -> dict:
+async def run_crop_advisor_audit_agent(db: Session) -> dict:
     """
     AI Crop Advisor Audit Agent:
     Evaluates crop outcomes vs market prices and assesses the
@@ -140,8 +137,8 @@ Return ONLY valid JSON:
 """
 
     try:
-        response = _model.generate_content(prompt)
-        text = response.text.strip()
+        text = await gemini_service.generate_smart_text(prompt)
+        text = text.strip()
         if text.startswith("```json"):
             text = text[7:]
         if text.startswith("```"):

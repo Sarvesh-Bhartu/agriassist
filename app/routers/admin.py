@@ -159,7 +159,7 @@ async def agent_portfolio(
 ):
     """Agent 1: Portfolio Analysis — Business Intelligence report from live DB data."""
     from app.services.agents.agent_portfolio import run_portfolio_analysis_agent
-    return run_portfolio_analysis_agent(db)
+    return await run_portfolio_analysis_agent(db)
 
 
 @router.get("/agents/personalized")
@@ -170,7 +170,7 @@ async def agent_personalized(
 ):
     """Agent 2: Personalized — Cross-sell/upsell opportunities and targeted campaigns."""
     from app.services.agents.agent_personalized import run_personalized_agent
-    return run_personalized_agent(db, top_n=top_n)
+    return await run_personalized_agent(db, top_n=top_n)
 
 
 @router.get("/agents/retention")
@@ -180,7 +180,7 @@ async def agent_retention(
 ):
     """Agent 3: Retention — At-risk farmers and area-level breakthrough strategies."""
     from app.services.agents.agent_retention import run_retention_agent
-    return run_retention_agent(db)
+    return await run_retention_agent(db)
 
 
 @router.get("/agents/crop-advisor")
@@ -190,7 +190,7 @@ async def agent_crop_advisor(
 ):
     """Agent 4: Crop Advisor Audit — Quality evaluation of recommendations given to farmers."""
     from app.services.agents.agent_crop_advisor import run_crop_advisor_audit_agent
-    return run_crop_advisor_audit_agent(db)
+    return await run_crop_advisor_audit_agent(db)
 
 
 @router.get("/agents/visualization")
@@ -201,7 +201,7 @@ async def agent_visualization(
 ):
     """Agent 5: Data Visualization — Generates heatmaps/charts from live DB data."""
     from app.services.agents.agent_visualization import run_visualization_agent
-    return run_visualization_agent(db, query=query)
+    return await run_visualization_agent(db, query=query)
 
 
 # ─────────────────────────────────────────

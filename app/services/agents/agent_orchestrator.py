@@ -43,11 +43,8 @@ lc_globals.set_debug(False)
 
 
 # ── Gemini direct SDK ─────────────────────────────────────────────────────
-import google.generativeai as genai
-from app.core.config import settings
+from app.services.gemini_service import gemini_service
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-_gemini = genai.GenerativeModel("gemini-2.5-flash")
 
 # We store the DB session in a thread-local so the stateless LangChain tools
 # can access it without passing it as an argument (LangChain tool signatures
@@ -65,7 +62,7 @@ def _get_db():
 # ══════════════════════════════════════════════════════════════════════════
 
 @lc_tool
-def portfolio_analysis_tool(dummy: str = "") -> str:
+async def portfolio_analysis_tool(dummy: str = "") -> str:
     """
     Analyzes the complete farmer and farm portfolio.
     Use this tool when the query is about platform overview, total land area,
@@ -77,7 +74,7 @@ def portfolio_analysis_tool(dummy: str = "") -> str:
     if db is None:
         return json.dumps({"error": "No DB session available"})
     from app.services.agents.agent_portfolio import run_portfolio_analysis_agent
-    result = run_portfolio_analysis_agent(db)
+    result = await run_portfolio_analysis_agent(db)
     a = result.get("analysis", {})
     r = result.get("raw_data", {})
     return json.dumps({
@@ -98,7 +95,7 @@ def portfolio_analysis_tool(dummy: str = "") -> str:
 
 
 @lc_tool
-def personalized_campaigns_tool(dummy: str = "") -> str:
+async def personalized_campaigns_tool(dummy: str = "") -> str:
     """
     Identifies cross-sell and upsell opportunities for individual farmers.
     Use this tool when the query is about campaigns, marketing, targeted messages,
@@ -109,7 +106,7 @@ def personalized_campaigns_tool(dummy: str = "") -> str:
     if db is None:
         return json.dumps({"error": "No DB session available"})
     from app.services.agents.agent_personalized import run_personalized_agent
-    result = run_personalized_agent(db, top_n=8)
+    result = await run_personalized_agent(db, top_n=8)
     c = result.get("campaigns", {})
     return json.dumps({
         "agent": "personalized",
@@ -120,7 +117,7 @@ def personalized_campaigns_tool(dummy: str = "") -> str:
 
 
 @lc_tool
-def retention_analysis_tool(dummy: str = "") -> str:
+async def retention_analysis_tool(dummy: str = "") -> str:
     """
     Identifies at-risk farmers who may churn or become inactive.
     Use this tool when the query is about farmer retention, at-risk farmers,
@@ -131,7 +128,7 @@ def retention_analysis_tool(dummy: str = "") -> str:
     if db is None:
         return json.dumps({"error": "No DB session available"})
     from app.services.agents.agent_retention import run_retention_agent
-    result = run_retention_agent(db)
+    result = await run_retention_agent(db)
     r = result.get("retention_plan", {})
     s = result.get("risk_summary", {})
     return json.dumps({
@@ -146,7 +143,7 @@ def retention_analysis_tool(dummy: str = "") -> str:
 
 
 @lc_tool
-def crop_advisor_audit_tool(dummy: str = "") -> str:
+async def crop_advisor_audit_tool(dummy: str = "") -> str:
     """
     Audits the quality of crop recommendations given to farmers.
     Use this tool when the query is about crop advice quality, which crops are
@@ -157,7 +154,7 @@ def crop_advisor_audit_tool(dummy: str = "") -> str:
     if db is None:
         return json.dumps({"error": "No DB session available"})
     from app.services.agents.agent_crop_advisor import run_crop_advisor_audit_agent
-    result = run_crop_advisor_audit_agent(db)
+    result = await run_crop_advisor_audit_agent(db)
     a = result.get("audit_report", {})
     r = result.get("raw_data", {})
     return json.dumps({
@@ -176,7 +173,7 @@ def crop_advisor_audit_tool(dummy: str = "") -> str:
 
 
 @lc_tool
-def data_visualization_tool(chart_query: str = "all") -> str:
+async def data_visualization_tool(chart_query: str = "all") -> str:
     """
     Generates charts and heatmaps from the live database.
     Use this tool when the query asks for charts, graphs, heatmaps, visual data,
@@ -188,7 +185,7 @@ def data_visualization_tool(chart_query: str = "all") -> str:
     if db is None:
         return json.dumps({"error": "No DB session available"})
     from app.services.agents.agent_visualization import run_visualization_agent
-    result = run_visualization_agent(db, query=chart_query or "all")
+    result = await run_visualization_agent(db, query=chart_query or "all")
     charts_meta = [
         {"label": c["label"], "has_image": bool(c.get("image")), "image": c.get("image")}
         for c in result.get("charts", [])
@@ -231,7 +228,7 @@ def _build_tool_catalogue() -> str:
     return "\n".join(lines)
 
 
-def _gemini_select_tools(query: str) -> list[dict]:
+async def _gemini_select_tools(query: str) -> list[dict]:
     """
     Ask Gemini to select which LangChain tools to call and with what arguments.
     Returns a list of {"tool_name": str, "args": dict} dicts.
@@ -244,9 +241,14 @@ Available LangChain tools:
 
 Admin query: "{query}"
 
-Select 1-3 tools to call to best answer this query. For data_visualization_tool, set
-chart_query to the user's question about visuals. For all other tools use an empty string
-for the dummy parameter.
+Select 1-3 tools to call to best answer this query. 
+
+Rules:
+- ONLY use 'data_visualization_tool' if the user explicitly asks for a chart, graph, heatmap, or visual representation.
+- For analytical questions (e.g., 'Which districts...', 'Who is at risk...', 'Analyze the portfolio...'), use the analytical tools (retention, personalized, portfolio).
+- DO NOT call the visualization tool for every query.
+- For 'data_visualization_tool', set 'chart_query' to the specific visual the user wants.
+- For all other tools, use an empty string for the 'dummy' parameter.
 
 Return ONLY a valid JSON array. Example:
 [
@@ -257,8 +259,8 @@ Return ONLY a valid JSON array. Example:
 Raw JSON only, no markdown fences.
 """
     try:
-        resp = _gemini.generate_content(prompt)
-        text = resp.text.strip().replace("```json", "").replace("```", "").strip()
+        text = await gemini_service.generate_smart_text(prompt)
+        text = text.strip().replace("```json", "").replace("```", "").strip()
         selected = json.loads(text)
         # Validate tool names
         valid_names = {t.name for t in ALL_TOOLS}
@@ -267,21 +269,23 @@ Raw JSON only, no markdown fences.
         return [{"tool_name": "portfolio_analysis_tool", "args": {"dummy": ""}}]
 
 
-def _execute_tool(tool_name: str, args: dict) -> Any:
+async def _execute_tool(tool_name: str, args: dict) -> Any:
     """Find and invoke a LangChain tool by name."""
     for t in ALL_TOOLS:
         if t.name == tool_name:
-            return t.invoke(args)
+            return await t.ainvoke(args)
     return json.dumps({"error": f"Tool {tool_name} not found"})
 
 
-def _execute_tool_with_db(tool_name: str, args: dict, db) -> Any:
+
+async def _execute_tool_with_db(tool_name: str, args: dict, db) -> Any:
     """Wrapper to ensure DB session is set in the executor thread's local storage."""
     _local.db = db
-    return _execute_tool(tool_name, args)
+    return await _execute_tool(tool_name, args)
 
 
-def _synthesize_with_langchain_results(query: str, tool_results: list[dict]) -> str:
+
+async def _synthesize_with_langchain_results(query: str, tool_results: list[dict]) -> str:
     """Gemini synthesizes a final answer from all tool outputs."""
     combined = "\n\n".join(
         f"[{r['label']} tool result]\n{r['raw_output'][:600]}"
@@ -299,8 +303,8 @@ Be conversational but professional. Use bullet points where helpful.
 Plain text only, no markdown headers.
 """
     try:
-        resp = _gemini.generate_content(prompt)
-        return resp.text.strip()
+        text = await gemini_service.generate_smart_text(prompt)
+        return text.strip()
     except Exception as e:
         return f"Analysis complete. (Synthesis error: {e})"
 
@@ -349,7 +353,7 @@ async def stream_orchestrator(query: str, db) -> AsyncGenerator[str, None]:
 
     # ── Step 2: Tool Selection via Gemini + LangChain schemas ─────────────
     loop = asyncio.get_event_loop()
-    selected_calls = await loop.run_in_executor(None, _gemini_select_tools, query)
+    selected_calls = await _gemini_select_tools(query)
 
     if not selected_calls:
         yield emit({"type": "thinking", "text": "No suitable tools found, falling back to portfolio overview."})
@@ -388,7 +392,7 @@ async def stream_orchestrator(query: str, db) -> AsyncGenerator[str, None]:
         await asyncio.sleep(0.05)
 
         try:
-            raw_output = await loop.run_in_executor(None, _execute_tool_with_db, tn, args, db)
+            raw_output = await _execute_tool_with_db(tn, args, db)
             result_data = json.loads(raw_output) if isinstance(raw_output, str) else raw_output
 
             # Extract a one-line summary
@@ -417,7 +421,7 @@ async def stream_orchestrator(query: str, db) -> AsyncGenerator[str, None]:
     yield emit({"type": "thinking", "text": "Synthesizing final answer from all tool results..."})
     await asyncio.sleep(0.05)
 
-    final_answer = await loop.run_in_executor(None, _synthesize_with_langchain_results, query, all_results)
+    final_answer = await _synthesize_with_langchain_results(query, all_results)
     yield emit({"type": "answer", "text": final_answer})
     yield emit({"type": "done"})
 

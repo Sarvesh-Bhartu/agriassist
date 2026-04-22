@@ -9,11 +9,8 @@ from app.models.user import Farmer
 from app.models.farm import Farm
 from app.models.crop import Crop, MarketPrice
 from app.models.gamification import GamificationEvent
-import google.generativeai as genai
-from app.core.config import settings
+from app.services.gemini_service import gemini_service
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 def _score_farmer(farmer: Farmer, farms: list, crops: list, events: list) -> dict:
@@ -48,7 +45,7 @@ def _score_farmer(farmer: Farmer, farms: list, crops: list, events: list) -> dic
     }
 
 
-def run_personalized_agent(db: Session, top_n: int = 10) -> dict:
+async def run_personalized_agent(db: Session, top_n: int = 10) -> dict:
     """
     Personalized Cross-Sell/Upsell Agent.
     Returns targeted campaign suggestions for top opportunity farmers.
@@ -115,8 +112,8 @@ Return ONLY valid JSON:
 """
 
     try:
-        response = _model.generate_content(prompt)
-        text = response.text.strip()
+        text = await gemini_service.generate_smart_text(prompt)
+        text = text.strip()
         if text.startswith("```json"):
             text = text[7:]
         if text.startswith("```"):

@@ -13,12 +13,9 @@ import json
 import io
 import os
 from PIL import Image, ImageDraw
-import google.generativeai as genai
-from app.core.config import settings
-
 # Configure Gemini
-genai.configure(api_key=settings.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.5-flash")
+from app.services.gemini_service import gemini_service
+
 
 
 def _draw_polygon_on_image(img: Image.Image, points: list[dict], width: int, height: int) -> Image.Image:
@@ -148,8 +145,9 @@ async def analyse_space(
     ]
 
     try:
-        response = _model.generate_content(content)
-        result_text = response.text.strip()
+        # Assemble images as list of bytes
+        images_data = [p["data"] for p in gemini_parts]
+        result_text = await gemini_service.generate_smart_vision(prompt_text, images_data)
 
         # Strip markdown wrappers if present
         if result_text.startswith("```json"):
@@ -223,8 +221,7 @@ async def generate_planting_plan(
     
     try:
         # We can pass the analysis_result as text to give Gemini context
-        response = _model.generate_content(prompt_text)
-        result_text = response.text.strip()
+        result_text = await gemini_service.generate_smart_text(prompt_text)
 
         # Clean JSON
         if result_text.startswith("```json"):
@@ -264,13 +261,20 @@ async def chat_with_urban_ai(
     Use Hindi or English based on the user's tone. If they speak Hindi, respond in Hindi.
     """
     
-    chat = _model.start_chat(history=[
-        {"role": "user", "parts": [system_prompt]},
-        {"role": "model", "parts": ["Understood. I am now your specialized Urban AgriAssist AI. How can I help with your balcony garden today?"]}
-    ] + history)
+    # Replacing model.start_chat with a manual history prompt to leverage rotation/fallback
+
     
     try:
-        response = chat.send_message(user_message)
-        return response.text
+        # Chat currently uses the pro_model from gemini_service but without rotation easily
+        # For simple chat, we can just use generate_smart_text with history appended if needed, 
+        # or stick to basic chat if we don't want to overcomplicate.
+        # However, the user asked for rotation everywhere.
+        
+        full_prompt = f"{system_prompt}\n\nChat History:\n"
+        for h in history:
+            full_prompt += f"{h['role']}: {h['parts'][0]}\n"
+        full_prompt += f"user: {user_message}"
+        
+        return await gemini_service.generate_smart_text(full_prompt)
     except Exception as e:
         return f"I'm sorry, I'm having trouble connecting right now. Error: {str(e)}"

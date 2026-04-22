@@ -13,11 +13,8 @@ from app.models.user import Farmer
 from app.models.farm import Farm
 from app.models.crop import Crop, MarketPrice
 from app.models.gamification import GamificationEvent
-import google.generativeai as genai
-from app.core.config import settings
+from app.services.gemini_service import gemini_service
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ── Matplotlib imports (already available via numpy/pillow stack) ─
 try:
@@ -224,7 +221,7 @@ CHART_CATALOGUE = {
 }
 
 
-def run_visualization_agent(db: Session, query: str = "all") -> dict:
+async def run_visualization_agent(db: Session, query: str = "all") -> dict:
     """
     Data Visualization Agent.
     - query='all': returns all charts
@@ -232,6 +229,15 @@ def run_visualization_agent(db: Session, query: str = "all") -> dict:
     """
     if query.strip().lower() == "all":
         chart_ids = list(CHART_CATALOGUE.keys())
+    elif not query.strip() or len(query.strip()) < 3:
+        # Avoid returning all charts for very short or empty queries
+        return {
+            "query": query,
+            "charts": [],
+            "ai_narrative": "Please provide a more specific question to generate relevant charts.",
+            "matplotlib_available": MATPLOTLIB_AVAILABLE,
+            "catalogue": {k: {"label": v["label"], "description": v["description"]} for k, v in CHART_CATALOGUE.items()}
+        }
     else:
         # Ask Gemini which charts best answer the query
         catalogue_desc = json.dumps(
@@ -249,11 +255,12 @@ Example: ["soil_distribution", "carbon_by_soil"]
 Return at most 3 charts. Return as raw JSON array, no markdown.
 """
         try:
-            pick_resp = _model.generate_content(pick_prompt)
-            pick_text = pick_resp.text.strip().replace("```json", "").replace("```", "")
+            pick_text = await gemini_service.generate_smart_text(pick_prompt)
+            pick_text = pick_text.strip().replace("```json", "").replace("```", "")
             chart_ids = json.loads(pick_text)
         except Exception:
-            chart_ids = list(CHART_CATALOGUE.keys())[:2]
+            # If Gemini fails to pick, don't return any charts to avoid spamming
+            chart_ids = []
 
     # Generate the selected charts
     charts_output = []
@@ -285,8 +292,8 @@ in the context of managing an agricultural platform in India.
 Be specific and actionable. Return plain text only, no JSON, no markdown.
 """
     try:
-        narr_resp = _model.generate_content(narrative_prompt)
-        narrative = narr_resp.text.strip()
+        narrative = await gemini_service.generate_smart_text(narrative_prompt)
+        narrative = narrative.strip()
     except Exception as e:
         narrative = f"Charts generated successfully. AI narrative unavailable: {str(e)}"
 

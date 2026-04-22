@@ -9,11 +9,8 @@ from sqlalchemy.orm import Session
 from app.models.user import Farmer
 from app.models.farm import Farm
 from app.models.gamification import GamificationEvent
-import google.generativeai as genai
-from app.core.config import settings
+from app.services.gemini_service import gemini_service
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.5-flash")
 
 # A farmer is "at risk" if no activity in last 14 days or low points
 AT_RISK_DAYS = 14
@@ -80,7 +77,7 @@ def _area_breakdown(at_risk: list) -> dict:
     return {"by_district": by_district, "by_state": by_state}
 
 
-def run_retention_agent(db: Session) -> dict:
+async def run_retention_agent(db: Session) -> dict:
     """
     Retention Agent:
     Identifies at-risk farmers, groups by area,
@@ -158,8 +155,8 @@ Return ONLY valid JSON:
 """
 
     try:
-        response = _model.generate_content(prompt)
-        text = response.text.strip()
+        text = await gemini_service.generate_smart_text(prompt)
+        text = text.strip()
         if text.startswith("```json"):
             text = text[7:]
         if text.startswith("```"):

@@ -56,8 +56,32 @@ class GeminiService:
         if self.keys:
             self.current_key_idx = 0
             genai.configure(api_key=self.keys[self.current_key_idx])
-            self.vision_model = genai.GenerativeModel('gemini-1.5-flash')
-            self.pro_model = genai.GenerativeModel('gemini-1.5-flash')
+            self.vision_model = genai.GenerativeModel('models/gemini-1.5-flash')
+            self.pro_model = genai.GenerativeModel('models/gemini-1.5-flash')
+
+    async def generate_smart_text(self, prompt: str) -> str:
+        """Centralized text generation with Key Rotation & Groq Fallback."""
+        return await self._generate_text_with_retry(prompt)
+
+    async def generate_smart_vision(self, prompt: str, image_data: list[bytes]) -> str:
+        """Vision generation with Key Rotation. (Groq does not support vision yet)"""
+        # Note: image_data is list of bytes
+        parts = [prompt]
+        for data in image_data:
+            parts.append(Image.open(io.BytesIO(data)))
+            
+        while True:
+            try:
+                response = self.vision_model.generate_content(parts)
+                return response.text.strip()
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg:
+                    if self.rotate_key():
+                        continue
+                print(f"Gemini Vision completely failed: {e}")
+                raise e
+
 
     async def _call_groq_text(self, prompt: str) -> str:
         """Fallback to Groq Llama-3 API if Gemini pool is exhausted."""
