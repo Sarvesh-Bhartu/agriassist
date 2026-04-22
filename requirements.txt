@@ -54,4 +54,5 @@ neo4j==5.16.0
 twilio==9.0.0
 
 # Database migration
-psycopg2-binarysupabase==2.3.7
+psycopg2-binary
+supabase==2.3.7
