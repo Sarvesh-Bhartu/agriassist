@@ -13,6 +13,7 @@ from app.services.carbon_service import carbon_service
 from app.services.gamification_service import gamification_service
 from app.services.graph_service import graph_service
 from app.services.gemini_service import gemini_service
+from app.core.storage import storage_service
 
 router = APIRouter(prefix="/api/farms", tags=["Farm Management"])
 
@@ -274,8 +275,16 @@ async def upload_farm_document(
         content = await file.read()
         f.write(content)
 
-    # Update farm record
-    farm.document_url = f"/uploads/farms/{safe_filename}"
+    # Cloud Upload (Supabase)
+    cloud_url = await storage_service.upload_file(
+        bucket_name="farm-documents",
+        file_data=content,
+        file_name=file.filename,
+        content_type=file.content_type
+    )
+
+    # Update farm record - use cloud URL if available, otherwise local
+    farm.document_url = cloud_url or f"/uploads/farms/{safe_filename}"
     farm.verification_status = "pending"
     farm.verification_comments = None
     db.commit()

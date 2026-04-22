@@ -93,7 +93,7 @@
                 <div class="bg-white rounded-lg shadow-md border overflow-hidden flex flex-col">
                     ${item.image_path ? `
                         <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
-                            <img src="/${item.image_path}" class="w-full h-full object-cover" />
+                            <img src="${item.image_path.startsWith('http') ? item.image_path : '/' + item.image_path}" class="w-full h-full object-cover" />
                         </div>
                     ` : '<div class="h-48 bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>'}
                     <div class="p-4 flex-1 flex flex-col">
@@ -148,7 +148,7 @@
         const imgContainer = document.getElementById('modalImageContainer');
         const imgEl = document.getElementById('modalPlantImage');
         if (imagePath && imagePath !== 'null' && imagePath !== '') {
-            imgEl.src = '/' + imagePath;
+            imgEl.src = imagePath.startsWith('http') ? imagePath : '/' + imagePath;
             imgContainer.classList.remove('hidden');
         } else {
             imgContainer.classList.add('hidden');

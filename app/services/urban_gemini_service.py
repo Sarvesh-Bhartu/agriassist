@@ -12,6 +12,7 @@ to estimate:
 import json
 import io
 import os
+import httpx
 from PIL import Image, ImageDraw
 # Configure Gemini
 from app.services.gemini_service import gemini_service
@@ -109,12 +110,39 @@ async def analyse_space(
     gemini_parts = []
 
     for i, img_path in enumerate(image_paths):
-        if not os.path.exists(img_path):
+        img_bytes = None
+        print(f"🔍 AI Analyzing image path: {img_path}")
+        
+        # Handle Cloud URLs
+        if img_path.startswith("http"):
+            try:
+                print(f"🌐 Fetching from Cloud: {img_path}")
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                    resp = await client.get(img_path)
+                    resp.raise_for_status()
+                    img_bytes = resp.content
+                    print(f"✅ Cloud fetch success: {len(img_bytes)} bytes")
+            except Exception as e:
+                print(f"❌ Failed to fetch cloud image {img_path}: {e}")
+                continue
+        # Handle Local Files (ensure we check relative to project root)
+        else:
+            # Strip leading slash for os.path join
+            clean_path = img_path.lstrip('/')
+            if os.path.exists(clean_path):
+                print(f"📁 Loading from Local Disk: {clean_path}")
+                with open(clean_path, "rb") as f:
+                    img_bytes = f.read()
+                print(f"✅ Local load success: {len(img_bytes)} bytes")
+            else:
+                print(f"❓ Path does not exist locally: {clean_path}")
+        
+        if not img_bytes:
             continue
 
         points = polygons[i] if i < len(polygons) else []
 
-        with Image.open(img_path) as img:
+        with Image.open(io.BytesIO(img_bytes)) as img:
             img = img.convert("RGB")
             w, h = img.size
 
@@ -126,10 +154,11 @@ async def analyse_space(
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=85)
             buf.seek(0)
+            img_bytes = buf.read()
 
         gemini_parts.append({
             "mime_type": "image/jpeg",
-            "data": buf.read()
+            "data": img_bytes
         })
 
     if not gemini_parts:

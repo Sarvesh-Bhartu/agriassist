@@ -14,6 +14,7 @@ from app.utils.image_processing import ImageProcessor
 from app.services.alert_service import alert_service
 from app.core.config import settings
 from typing import List
+from app.core.storage import storage_service
 
 router = APIRouter(prefix="/api/plants", tags=["Plant Identification"])
 
@@ -102,6 +103,22 @@ async def identify_plant(
             os.remove(image_path)
         raise HTTPException(500, f"Plant identification failed: {str(e)}")
     
+    # Cloud Upload (Supabase)
+    # Upload the processed (annotated) image or original
+    final_image_path = image_path
+    with open(final_image_path, "rb") as f:
+        img_data = f.read()
+    
+    cloud_url = await storage_service.upload_file(
+        bucket_name="plant-scans",
+        file_data=img_data,
+        file_name=os.path.basename(final_image_path),
+        content_type="image/jpeg"
+    )
+    
+    # Primary URL becomes the cloud URL
+    display_image_path = cloud_url or f"/{image_path}"
+    
     # Calculate points
     points = 100 if is_invasive else 50
     
@@ -116,7 +133,7 @@ async def identify_plant(
         confidence=confidence,
         latitude=latitude,
         longitude=longitude,
-        image_path=image_path,
+        image_path=display_image_path,
         removal_method=removal_method,
         points_awarded=points
     )
@@ -214,7 +231,7 @@ async def identify_plant(
             "confidence": confidence,
             "is_invasive": is_invasive,
             "threat_level": "High" if is_invasive else "Low",
-            "image_url": f"/{image_path}"
+            "image_url": display_image_path
         },
         "gamification": gamification_result,
         "detection_id": str(detection.id),
@@ -271,12 +288,20 @@ async def mark_plant_destroyed(
         
         with open(proof_path, "wb") as f:
             f.write(image_bytes)
+        
+        # Cloud Upload Proof
+        proof_cloud_url = await storage_service.upload_file(
+            bucket_name="plant-scans",
+            file_data=image_bytes,
+            file_name=os.path.basename(proof_path),
+            content_type="image/jpeg"
+        )
     
     # Update detection
     detection.destroyed = True
     detection.destruction_verified = True if proof_image else False
     detection.destruction_date = datetime.utcnow()
-    detection.proof_image_path = proof_path
+    detection.proof_image_path = proof_cloud_url or f"/{proof_path}"
     
     db.commit()
     

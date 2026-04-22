@@ -26,9 +26,10 @@ class GeminiService:
         self.current_key_idx = 0
         if self.keys:
             genai.configure(api_key=self.keys[self.current_key_idx])
+            print(f"DEBUG: Initialized Gemini with key starting with {self.keys[self.current_key_idx][:5]}...")
             
-        self.vision_model = genai.GenerativeModel('gemini-1.5-flash')
-        self.pro_model = genai.GenerativeModel('gemini-1.5-flash')
+        self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
         self.use_groq_exclusively = False
 
     def get_vision_model(self):
@@ -44,11 +45,11 @@ class GeminiService:
         if not self.keys or self.current_key_idx >= len(self.keys) - 1:
             return False # no more keys
         self.current_key_idx += 1
-        print(f"QUOTA EXCEEDED! Rotating to Gemini Key #{self.current_key_idx + 1}")
+        print(f"QUOTA/404 EXCEEDED! Rotating to Gemini Key #{self.current_key_idx + 1} (starts with {self.keys[self.current_key_idx][:5]}...)")
         genai.configure(api_key=self.keys[self.current_key_idx])
         # Re-initialize models with new config context
-        self.vision_model = genai.GenerativeModel('gemini-1.5-flash')
-        self.pro_model = genai.GenerativeModel('gemini-1.5-flash')
+        self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
         return True
 
     def reset_key_cycle(self):
@@ -56,8 +57,8 @@ class GeminiService:
         if self.keys:
             self.current_key_idx = 0
             genai.configure(api_key=self.keys[self.current_key_idx])
-            self.vision_model = genai.GenerativeModel('models/gemini-1.5-flash')
-            self.pro_model = genai.GenerativeModel('models/gemini-1.5-flash')
+            self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
+            self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
 
     async def generate_smart_text(self, prompt: str) -> str:
         """Centralized text generation with Key Rotation & Groq Fallback."""
@@ -76,7 +77,8 @@ class GeminiService:
                 return response.text.strip()
             except Exception as e:
                 error_msg = str(e).lower()
-                if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg:
+                # Check for quota (429) OR model not found (404)
+                if any(x in error_msg for x in ["429", "quota", "exhausted", "404", "not found"]):
                     if self.rotate_key():
                         continue
                 print(f"Gemini Vision completely failed: {e}")
@@ -124,8 +126,8 @@ class GeminiService:
                 return response.text.strip()
             except Exception as e:
                 error_msg = str(e).lower()
-                # Check for quota or 429
-                if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg:
+                # Check for quota (429) OR model not found (404)
+                if any(x in error_msg for x in ["429", "quota", "exhausted", "404", "not found"]):
                     if self.rotate_key():
                         continue # try the prompt again with new key
                 

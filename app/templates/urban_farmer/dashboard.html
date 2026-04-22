@@ -234,10 +234,11 @@
                         </button>`;
                 }
 
+                const imgUrl = space.image_paths[0].startsWith('http') ? space.image_paths[0] : '/' + space.image_paths[0];
                 return `
                     <div id="card-${space.id}" class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all h-fit">
                         <div class="h-48 bg-gray-200 relative">
-                            <img src="/${space.image_paths[0]}" alt="${space.name}" class="w-full h-full object-cover" onerror="this.src='/static/img/placeholder.png'">
+                            <img src="${imgUrl}" alt="${space.name}" class="w-full h-full object-cover" onerror="this.src='/static/img/placeholder.png'">
                             <div class="absolute top-4 right-4">
                                 <span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${badgeClass} shadow-sm">${badgeText}</span>
                             </div>
@@ -568,7 +569,7 @@
                     <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                         <p class="text-[10px] text-gray-400 mb-1">${new Date(log.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                         <p class="text-xs text-gray-700 mb-2">${log.note}</p>
-                        ${log.image_url ? `<img src="${log.image_url}" class="w-full rounded-lg border border-gray-100 mt-2">` : ''}
+                        ${log.image_url ? `<img src="${log.image_url.startsWith('http') ? log.image_url : (log.image_url.startsWith('/') ? log.image_url : '/' + log.image_url)}" class="w-full rounded-lg border border-gray-100 mt-2">` : ''}
                     </div>
                 </div>
             `).join('');
@@ -660,7 +661,8 @@
             document.getElementById('scan-loading').classList.add('hidden');
             document.getElementById('scan-result').classList.remove('hidden');
 
-            document.getElementById('result-img').innerHTML = `<img src="${data.image_url}" class="w-full h-full object-cover">`;
+            const resultImgUrl = data.image_url.startsWith('http') ? data.image_url : (data.image_url.startsWith('/') ? data.image_url : '/' + data.image_url);
+            document.getElementById('result-img').innerHTML = `<img src="${resultImgUrl}" class="w-full h-full object-cover">`;
             document.getElementById('res-species').textContent = data.species;
             document.getElementById('res-status').textContent = data.status;
 

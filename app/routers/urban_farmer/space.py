@@ -17,6 +17,7 @@ from app.services.vision_service import vision_service
 from app.services.gemini_service import gemini_service
 from app.utils.image_processing import ImageProcessor
 from app.core.config import settings
+from app.core.storage import storage_service
 
 from fastapi.templating import Jinja2Templates
 
@@ -114,8 +115,17 @@ async def submit_space(
             file_path = os.path.join(UPLOAD_DIR, file_name)
             
             with open(file_path, "wb") as f:
-                f.write(await img.read())
-            saved_image_paths.append(file_path)
+                content = await img.read()
+                f.write(content)
+            
+            # Cloud Upload
+            cloud_url = await storage_service.upload_file(
+                bucket_name="urban-spaces",
+                file_data=content,
+                file_name=img.filename,
+                content_type=img.content_type
+            )
+            saved_image_paths.append(cloud_url or f"/{file_path}")
 
         # Create SpaceRecord node
         query = '''
@@ -459,8 +469,17 @@ async def create_growth_log(
             file_path = os.path.join(log_upload_dir, file_name)
             
             with open(file_path, "wb") as f:
-                f.write(await image.read())
-            image_url = f"/{file_path}"
+                content = await image.read()
+                f.write(content)
+            
+            # Cloud Upload
+            cloud_url = await storage_service.upload_file(
+                bucket_name="growth-logs",
+                file_data=content,
+                file_name=image.filename,
+                content_type=image.content_type
+            )
+            image_url = cloud_url or f"/{file_path}"
 
         query = """
         MATCH (p:PlantingPlan {id: $plan_id})
@@ -628,6 +647,15 @@ async def scan_plant_disease(
     
     with open(image_path, "wb") as f:
         f.write(compressed_bytes)
+
+    # Cloud Upload Scan
+    cloud_url = await storage_service.upload_file(
+        bucket_name="plant-scans",
+        file_data=compressed_bytes,
+        file_name=image_filename,
+        content_type="image/jpeg"
+    )
+    cloud_image_url = cloud_url or f"/{image_path}"
         
     try:
         # 1. YOLO for bounding boxes
@@ -666,7 +694,7 @@ async def scan_plant_disease(
             id=str(uuid.uuid4()),
             species=species,
             status=status,
-            image_url=f"/{image_path}",
+            image_url=cloud_image_url,
             is_unhealthy=is_unhealthy)
         finally:
             session.close()
@@ -675,7 +703,7 @@ async def scan_plant_disease(
             "species": species,
             "status": status,
             "is_unhealthy": is_unhealthy,
-            "image_url": f"/{image_path}"
+            "image_url": cloud_image_url
         }
 
     except Exception as e:

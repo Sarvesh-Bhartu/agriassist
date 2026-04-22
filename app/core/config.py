@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 10
     UPLOAD_DIR: str = "uploads"
     
+    # Supabase Storage
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None
+    
     # JWT
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
