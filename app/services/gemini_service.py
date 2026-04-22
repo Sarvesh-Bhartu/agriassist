@@ -27,8 +27,8 @@ class GeminiService:
         if self.keys:
             genai.configure(api_key=self.keys[self.current_key_idx])
             
-        self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
-        self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.vision_model = genai.GenerativeModel('gemini-1.5-flash')
+        self.pro_model = genai.GenerativeModel('gemini-1.5-flash')
         self.use_groq_exclusively = False
 
     def get_vision_model(self):
@@ -47,8 +47,8 @@ class GeminiService:
         print(f"QUOTA EXCEEDED! Rotating to Gemini Key #{self.current_key_idx + 1}")
         genai.configure(api_key=self.keys[self.current_key_idx])
         # Re-initialize models with new config context
-        self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
-        self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.vision_model = genai.GenerativeModel('gemini-1.5-flash')
+        self.pro_model = genai.GenerativeModel('gemini-1.5-flash')
         return True
 
     def reset_key_cycle(self):
@@ -56,8 +56,8 @@ class GeminiService:
         if self.keys:
             self.current_key_idx = 0
             genai.configure(api_key=self.keys[self.current_key_idx])
-            self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
-            self.pro_model = genai.GenerativeModel('gemini-2.5-flash')
+            self.vision_model = genai.GenerativeModel('gemini-1.5-flash')
+            self.pro_model = genai.GenerativeModel('gemini-1.5-flash')
 
     async def _call_groq_text(self, prompt: str) -> str:
         """Fallback to Groq Llama-3 API if Gemini pool is exhausted."""
